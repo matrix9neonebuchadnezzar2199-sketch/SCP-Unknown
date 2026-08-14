@@ -31,6 +31,8 @@ const RED_SEEK_INTERVAL = 1.2;
 const SENTRY_MAX = 2;
 const SENTRY_RADIUS = 56;
 const SENTRY_HIT = 18;
+const SENTRY_AMMO_MAX = 100;
+const SENTRY_EMPTY_MS = 10000;
 const RESPAWN_DELAY = 5.5;
 const BOSS_CONTACT_RADIUS = 18;
 /** 収容違反体は展開部隊より速い。逃げ切られると関門が成立しない */
@@ -379,6 +381,10 @@ function updateSectorSim(sim, state, dt) {
   sim.time += dt;
   let stateChanged = false;
   let breach = null;
+  if (expireEmptySentries(sim)) {
+    sim.events.push("セントリーガンが弾切れで撤去された");
+    stateChanged = true;
+  }
 
   for (const b of sim.blues) updateAgent(sim, b, dt);
   if (revealRoomsAround(sim, state)) stateChanged = true;
@@ -446,12 +452,15 @@ function updateSectorSim(sim, state, dt) {
   for (const r of sim.reds) {
     if (r.dead) continue;
     for (const s of sim.sentries) {
+      if ((s.ammo || 0) <= 0) continue;
       if (Math.hypot(r.x - s.x, r.y - s.y) > SENTRY_RADIUS) continue;
       const reward = runSkirmish(state, sim.depth);
       r.dead = true;
       r.respawnAt = sim.time + RESPAWN_DELAY;
       sim.contacts++;
       sim.flashes.push({ x: r.x, y: r.y, age: 0 });
+      s.ammo = Math.max(0, (typeof s.ammo === "number" ? s.ammo : SENTRY_AMMO_MAX) - 1);
+      if (s.ammo <= 0) s.emptyAtMs = Date.now();
       const roomName = sim.sector.rooms[r.roomId]?.code || "??";
       if (reward) {
         sim.events.push(
@@ -459,8 +468,8 @@ function updateSectorSim(sim, state, dt) {
           (reward.item ? ` / ${reward.item} 回収` : "") +
           ` (掃討 ${reward.kills}/${reward.need})`
         );
-        stateChanged = true;
       }
+      stateChanged = true;
       break;
     }
   }
@@ -603,6 +612,27 @@ function roomContaining(sector, x, y) {
   return sector.rooms.find((r) => x >= r.x && y >= r.y && x <= r.x + r.w && y <= r.y + r.h) || null;
 }
 
+/** 弾切れから 10 秒経過した砲台を外す。sim.sentries は state.sentries と同一配列 */
+function expireEmptySentries(sim) {
+  const now = Date.now();
+  let removed = false;
+  const list = sim.sentries || [];
+  for (let i = list.length - 1; i >= 0; i--) {
+    const s = list[i];
+    if (typeof s.ammo !== "number") s.ammo = SENTRY_AMMO_MAX;
+    if (s.ammo > 0) {
+      delete s.emptyAtMs;
+      continue;
+    }
+    if (typeof s.emptyAtMs !== "number") s.emptyAtMs = now;
+    if (now - s.emptyAtMs >= SENTRY_EMPTY_MS) {
+      list.splice(i, 1);
+      removed = true;
+    }
+  }
+  return removed;
+}
+
 function sentryIndexAt(sentries, x, y) {
   let best = -1;
   let bestD = SENTRY_HIT;
@@ -620,8 +650,10 @@ function drawSentries(ctx, sentries, preview) {
   const items = sentries.map((s) => ({ s, ghost: false }));
   if (preview) items.push({ s: preview, ghost: true });
   for (const { s, ghost } of items) {
+    const empty = !ghost && (s.ammo || 0) <= 0;
+    const rgb = empty ? "176,48,40" : "196,163,74";
     const alpha = ghost ? 0.45 : 0.7;
-    ctx.strokeStyle = `rgba(196,163,74,${alpha})`;
+    ctx.strokeStyle = `rgba(${rgb},${alpha})`;
     ctx.lineWidth = ghost ? 1 : 1.4;
     ctx.setLineDash(ghost ? [5, 4] : [3, 5]);
     ctx.beginPath();
@@ -629,12 +661,12 @@ function drawSentries(ctx, sentries, preview) {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    ctx.fillStyle = `rgba(196,163,74,${ghost ? 0.15 : 0.22})`;
+    ctx.fillStyle = `rgba(${rgb},${ghost ? 0.15 : 0.22})`;
     ctx.beginPath();
     ctx.arc(s.x, s.y, SENTRY_RADIUS, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = ghost ? "rgba(196,163,74,0.55)" : "#c4a34a";
+    ctx.fillStyle = ghost ? "rgba(196,163,74,0.55)" : (empty ? "#b03028" : "#c4a34a");
     ctx.beginPath();
     ctx.moveTo(s.x, s.y - 7);
     ctx.lineTo(s.x + 6, s.y + 5);

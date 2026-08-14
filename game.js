@@ -2048,6 +2048,7 @@ function migrateState(state) {
   migrateNonGunWeaponStacks(state);
   normalizeSquad(state);
   if (!Array.isArray(state.sentries)) state.sentries = [];
+  else state.sentries = cloneSentries(state.sentries);
   if (!Array.isArray(state.revealedRooms)) state.revealedRooms = [];
   if (state.sectorCleared) {
     if (state.floor < 50) {
@@ -2312,7 +2313,15 @@ function ensureMapProgress(state) {
 }
 
 function cloneSentries(list) {
-  return (Array.isArray(list) ? list : []).map((s) => ({ x: s.x, y: s.y }));
+  const ammoMax = typeof SENTRY_AMMO_MAX === "number" ? SENTRY_AMMO_MAX : 100;
+  return (Array.isArray(list) ? list : []).map((s) => {
+    const ammo = typeof s.ammo === "number"
+      ? Math.max(0, Math.min(ammoMax, Math.floor(s.ammo)))
+      : ammoMax;
+    const out = { x: Number(s.x) || 0, y: Number(s.y) || 0, ammo };
+    if (ammo <= 0 && typeof s.emptyAtMs === "number") out.emptyAtMs = s.emptyAtMs;
+    return out;
+  });
 }
 
 function cloneRevealedRooms(list) {

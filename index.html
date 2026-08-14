@@ -868,10 +868,38 @@ a { color: rgb(var(--color-secondary)); }
 
 /* 区画探索: 左 MAP / 右 ログ列。MAP は設定メニューまで1画面に収まる高さへ縮める */
 .sector-grid { display: grid; grid-template-columns: auto minmax(330px, 390px); gap: 12px; align-items: start; }
-@media (max-width: 1180px) { .sector-grid { grid-template-columns: 1fr; } }
+.sector-grid.has-sentry-ammo { grid-template-columns: auto minmax(118px, 148px) minmax(330px, 390px); }
+@media (max-width: 1180px) { .sector-grid, .sector-grid.has-sentry-ammo { grid-template-columns: 1fr; } }
 .sector-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .sector-side .label { margin-bottom: 5px; }
 .sector-side .battle-log { max-height: min(43.2vh, 324px); }
+.sentry-ammo-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.sentry-ammo-col[hidden] { display: none; }
+.sentry-ammo-card {
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-frame));
+  border-radius: var(--radius-card);
+  padding: 8px 10px;
+}
+.sentry-ammo-card .ammo-title {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  color: #5dca7a; margin-bottom: 4px;
+}
+.sentry-ammo-card .ammo-count {
+  font-family: Consolas, monospace; font-size: 13px; font-weight: 700;
+  color: #5dca7a; margin-bottom: 5px;
+}
+.sentry-ammo-card .meter-bar { height: 8px; }
+.sentry-ammo-card .meter-fill.green { background: linear-gradient(90deg, #2e8a48, #5dca7a); }
+.sentry-ammo-card.empty .ammo-title,
+.sentry-ammo-card.empty .ammo-count {
+  color: rgb(var(--color-danger));
+  animation: sentry-ammo-blink 0.55s step-end infinite;
+}
+.sentry-ammo-card.empty .meter-fill.green { background: rgb(var(--color-danger)); }
+@keyframes sentry-ammo-blink {
+  50% { opacity: 0.2; }
+}
 
 /* Menu grid（1行コンパクト） */
 .menu-section { margin-bottom: 10px; }
@@ -1690,6 +1718,7 @@ let attachFilterSort = "rarity";
 let sentryPlaceMode = false;
 let sentryPreview = null;
 let sentryBusy = false;
+let sentryAmmoHudKey = "";
 let codexClass = "ALL";
 let codexFound = "ALL";
 let codexKind = "ALL";
@@ -1919,6 +1948,7 @@ function render() {
   main.innerHTML = (currentView !== "dashboard" ? viewHeader() : "") + body;
   bindViewEvents();
   syncSectorLoop();
+  updateSentryAmmoHud(true);
 }
 
 /* --- 区画スキャンマップ --- */
@@ -1986,6 +2016,7 @@ function sectorFrame(ts) {
     sectorSaveTimer = 0;
   }
   updateRevealHud();
+  updateSentryAmmoHud();
   sectorSaveTimer += dt;
   if (sectorSaveTimer > 5 && (sectorSim.contacts > 0 || (state.revealedRooms || []).length > 0)) {
     saveGame(state);
@@ -2015,6 +2046,39 @@ function updateRevealHud() {
   const n = sectorSim.revealed instanceof Set ? sectorSim.revealed.size : 0;
   const pct = total ? Math.floor((n / total) * 100) : 0;
   el.textContent = `解明 ${n}/${total}  ${pct}%`;
+}
+
+/** MAP 右の残弾表示。弾数・弾切れ状態が変わったときだけ DOM を組み直す */
+function updateSentryAmmoHud(force) {
+  const col = document.getElementById("sentry-ammo-col");
+  const grid = document.getElementById("sector-grid");
+  if (!col) {
+    sentryAmmoHudKey = "";
+    return;
+  }
+  const list = state.sentries || [];
+  const ammoMax = typeof SENTRY_AMMO_MAX === "number" ? SENTRY_AMMO_MAX : 100;
+  const key = list.map((s) => `${s.ammo}|${(s.ammo || 0) <= 0 ? 1 : 0}`).join(";");
+  if (!force && key === sentryAmmoHudKey) return;
+  sentryAmmoHudKey = key;
+  if (grid) grid.classList.toggle("has-sentry-ammo", list.length > 0);
+  if (!list.length) {
+    col.hidden = true;
+    col.innerHTML = "";
+    return;
+  }
+  col.hidden = false;
+  col.innerHTML = list.map((s, i) => {
+    const ammo = typeof s.ammo === "number" ? s.ammo : ammoMax;
+    const empty = ammo <= 0;
+    const pct = Math.max(0, Math.round((ammo / ammoMax) * 100));
+    const title = list.length > 1 ? `セントリーガン残弾数 #${i + 1}` : "セントリーガン残弾数";
+    return `<div class="sentry-ammo-card${empty ? " empty" : ""}">
+      <div class="ammo-title">${title}</div>
+      <div class="ammo-count">${ammo}/${ammoMax}</div>
+      <div class="meter-bar"><div class="meter-fill green" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join("");
 }
 
 /** 診断バナーを閉じた時点の連敗数。次に負けると再表示される */
@@ -2197,7 +2261,7 @@ function renderDashboard() {
         <button type="button" class="btn btn-sm btn-secondary" data-goto="squad">編成</button>
       </div>
     </div>` : ""}
-    <div class="sector-grid">
+    <div class="sector-grid" id="sector-grid">
       <div>
         <div class="sector-wrap">
           <canvas id="sector-canvas" width="920" height="430" class="${sentryPlaceMode ? "place-sentry" : ""}"></canvas>
@@ -2221,6 +2285,7 @@ function renderDashboard() {
           </div>
         </div>
       </div>
+      <div class="sentry-ammo-col" id="sentry-ammo-col" hidden></div>
       <div class="sector-side">
         <div>
           <div class="label">索敵ログ</div>
@@ -3097,7 +3162,7 @@ function renderHelp() {
       <li>収集した部品と収容品は<strong>入手アイテム整理</strong>で倉庫へ入れるか、売却／分解する。上位クラフトと拠点拡張は収容品を残す必要がある。装備強化は予算と基礎部品。</li>
       <li><strong>工廠</strong>で部品と収容品から装備・アタッチメントを作り、<strong>拠点 → 装備</strong>で主人公に着せる。装備は個体ごとに強化（最大Lv.100、予算＋基礎部品）。メインウエポンのアタッチは個体ごとにレアとステ振れ幅が付く。</li>
       <li><strong>戦術 → 編成</strong>で主人公＋収容個体5体（計6）を揃えてから探索。</li>
-      <li><strong>戦術スキル → セントリーガン</strong>で解明済みの室内に砲台を置き、接近した敵を自動撃破する（最大2、砲台クリックで削除）。</li>
+      <li><strong>戦術スキル → セントリーガン</strong>で解明済みの室内に砲台を置き、接近した敵を自動撃破する（最大2、残弾 100、弾切れ 10 秒後に撤去。砲台クリックで削除）。</li>
       <li><strong>戦術 → 収容物体合成実験</strong>で収容体を親A／親Bへドラッグして合成。Rev とスキルを継承し、レシピがあれば交差種になる。</li>
       <li><strong>拠点強化</strong>のノードをクリックすると右側に詳細が出る。拡張は予算に加え基礎部品と収容品を消費する。</li>
       <li><strong>DB → 収容個体</strong>でカタログ化・再分類。</li>
@@ -3983,7 +4048,7 @@ function onSectorCanvasClick(ev) {
       if (state.sentries.length >= SENTRY_MAX) {
         toast(`設置上限です（${SENTRY_MAX}基）`);
       } else {
-        state.sentries.push({ x, y });
+        state.sentries.push({ x, y, ammo: SENTRY_AMMO_MAX });
         sentryPlaceMode = false;
         saveGame(state);
         toast(`セントリーガンを配置（${state.sentries.length}/${SENTRY_MAX}）`);
