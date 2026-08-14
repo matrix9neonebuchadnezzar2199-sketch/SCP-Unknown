@@ -422,6 +422,23 @@ a { color: rgb(var(--color-secondary)); }
 }
 .wt-gun { color: #58c4dc; border-color: #58c4dc66; }
 .wt-blade { color: #e08a5a; border-color: #e08a5a66; }
+.part-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 5px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  border: 1px solid rgb(var(--color-frame));
+  border-radius: 3px;
+  vertical-align: 1px;
+  color: #9ad4e4;
+  border-color: #58c4dc55;
+}
+.part-badge.part-gun { color: #58c4dc; border-color: #58c4dc66; }
+.part-badge.part-blade { color: #e08a5a; border-color: #e08a5a66; }
+.part-badge.part-armor { color: #c4a34a; border-color: #c4a34a66; }
+.part-badge.part-head { color: #8ec8ff; border-color: #8ec8ff66; }
+.part-badge.part-attach { color: #b8a0e8; border-color: #b8a0e866; }
 .equip-att-row.att-na {
   font-size: 10px;
   color: rgb(var(--color-text-muted));
@@ -643,7 +660,13 @@ a { color: rgb(var(--color-secondary)); }
 .slot .qty {
   position: absolute; right: 3px; bottom: 2px;
   font-family: Consolas, monospace; font-size: 10px; font-weight: 700;
-  color: #fff; text-shadow: 0 0 3px #000;
+  color: #fff; text-shadow: 0 0 3px #000; z-index: 1;
+}
+.slot .part {
+  position: absolute; left: 2px; bottom: 2px;
+  font-size: 8px; font-weight: 700; letter-spacing: 0;
+  color: #9ad4e4; text-shadow: 0 0 3px #000;
+  max-width: 62%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; z-index: 1;
 }
 .slot .grade {
   position: absolute; left: 1px; right: 1px; top: 1px;
@@ -2210,6 +2233,7 @@ let siteInspectNode = "n_start";
 let siteInspectKind = "tree";
 let alchemyKindTab = "ALL";
 let alchemyRarityTab = "ALL";
+let alchemyPartTab = "ALL";
 let alchemySortBy = "rarity";
 let alchemyCraftableOnly = false;
 let crossClass = "ALL";
@@ -2223,6 +2247,20 @@ const CRAFT_KIND_LABELS = {
   attach: "アタッチメント",
   artifact: "アーティファクト",
 };
+
+function gearPartFilterTabsHtml(active, dataAttr) {
+  const tabs = [["ALL", "すべて"], ...(GAME_DATA.gearParts || []).map((p) => [p.id, p.name])];
+  return tabs.map(([id, label]) =>
+    `<button type="button" class="${active === id ? "active" : ""}" ${dataAttr}="${id}">${label}</button>`
+  ).join("");
+}
+
+function partBadgeHtml(id) {
+  const name = gearPartName(id);
+  if (!name) return "";
+  const pid = gearPartFilterId(id) || "none";
+  return `<span class="part-badge part-${pid}">${escapeHtml(name)}</span>`;
+}
 
 /** 拠点の制作画面。SCP-914 と同じUIで、出すレシピの種類だけ違う */
 const CRAFT_SHOPS = {
@@ -3169,9 +3207,9 @@ function renderEquipment() {
     const lv = piece?.lv || 0;
     const active = equipPickSlot === slot.id ? " active" : "";
     const wType = slot.id === "mainWeapon" && id ? weaponTypeOf(id) : null;
-    const wBadge = wType ? `<span class="wt-badge wt-${wType}">${weaponTypeName(id)}</span>` : "";
+    const partBadge = id ? partBadgeHtml(id) : "";
     const itemLine = meta
-      ? `${wBadge}${escapeHtml(meta.name)}<span class="stars">${rarityStars(meta.rarity)}</span><span class="lv-badge">Lv.${lv}</span>`
+      ? `${partBadge}${escapeHtml(meta.name)}<span class="stars">${rarityStars(meta.rarity)}</span><span class="lv-badge">Lv.${lv}</span>`
       : `<span class="empty">未装備</span>`;
     const icon = meta
       ? `<img class="icon" src="assets/item/${id}.png" alt="" onerror="this.style.opacity='0.2'">`
@@ -3311,14 +3349,14 @@ function equipPickRowHtml(meta, qty, equipped, currentMeta, pieceOrCand, fromInd
   const statsHtml = equipped
     ? escapeHtml(formatItemStats(nextStat))
     : formatItemStatsCompare(nextStat, currentStat);
+  const partBadge = partBadgeHtml(meta.id);
   const wt = weaponTypeOf(meta.id);
-  const wtBadge = wt ? `<span class="wt-badge wt-${wt}">${weaponTypeName(meta.id)}</span>` : "";
   const attRow = (wt === "gun" && uid) ? attachIconsRowHtml(state, uid, "pick-att-row") : "";
   const uidAttr = uid ? ` data-hover-uid="${uid}"` : "";
   return `<div class="equip-pick-row" ${action} data-item-hover="${meta.id}" data-hover-lv="${lv}"${uidAttr}>
     <img src="assets/item/${meta.id}.png" alt="" onerror="this.style.opacity='0.2'">
     <div>
-      <div class="nm">${wtBadge}${escapeHtml(meta.name)}<span class="stars">${rarityStars(meta.rarity)}</span> <span class="lv-badge">Lv.${lv}</span>${equipped ? " 装備中" : ""}</div>
+      <div class="nm">${partBadge}${escapeHtml(meta.name)}<span class="stars">${rarityStars(meta.rarity)}</span> <span class="lv-badge">Lv.${lv}</span>${equipped ? " 装備中" : ""}</div>
       <div class="st">${statsHtml}</div>
       ${skill}
       ${attRow}
@@ -3340,18 +3378,22 @@ function slotHtml(entry, src, index) {
   const extra = src === "parts" ? ` data-id="${id}"` : "";
   const canDrag = qty > 0;
   const rollTip = entry.rolls ? ` / ${formatAttachStatLine(entry)}` : "";
+  const partName = gearPartName(id);
+  const partTag = partName ? `<span class="part">${escapeHtml(partName)}</span>` : "";
   return `<div class="slot r-${r}${canDrag ? "" : " empty"}"${canDrag ? ` draggable="true"` : ""}
     data-src="${src}" data-index="${index}"${extra}
-    title="${escapeHtml(itemName(id))} — ${rarityStars(r)}${rollTip} / 単価 ${itemValue(id)}">
+    title="${escapeHtml(itemName(id))}${partName ? ` / ${partName}` : ""} — ${rarityStars(r)}${rollTip} / 単価 ${itemValue(id)}">
     <span class="grade">${rarityStars(r)}</span>
     <img class="icon" src="assets/item/${id}.png" alt="" draggable="false" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
     <span class="nm">${escapeHtml(itemName(id))}</span>
+    ${partTag}
     <span class="qty">${qty}</span>
   </div>`;
 }
 
 let itemsSortBy = "rarity";
 let itemsRarityTab = "ALL";
+let itemsPartTab = "ALL";
 
 function sortedStorageEntries() {
   const filled = [];
@@ -3367,7 +3409,12 @@ function sortedStorageEntries() {
     if (itemsSortBy === "value") return itemValue(b.e.id) * b.e.qty - itemValue(a.e.id) * a.e.qty;
     return rank(b.e) - rank(a.e) || itemName(a.e.id).localeCompare(itemName(b.e.id), "ja");
   });
-  const list = itemsRarityTab === "ALL" ? filled.concat(empty) : filled.filter(({ e }) => entryRarity(e) === itemsRarityTab);
+  const list = filled.filter(({ e }) => {
+    if (itemsRarityTab !== "ALL" && entryRarity(e) !== itemsRarityTab) return false;
+    if (itemsPartTab !== "ALL" && gearPartFilterId(e.id) !== itemsPartTab) return false;
+    return true;
+  });
+  if (itemsRarityTab === "ALL" && itemsPartTab === "ALL") return list.concat(empty);
   return list;
 }
 
@@ -3386,6 +3433,7 @@ function renderItems() {
   const tabs = ["ALL", "SS", "S", "A", "B", "C", "D", "E"].map((t) =>
     `<button type="button" class="${itemsRarityTab === t ? "active" : ""}" data-rtab="${t}">${t === "ALL" ? "すべて" : rarityStars(t)}</button>`
   ).join("");
+  const partTabs = gearPartFilterTabsHtml(itemsPartTab, "data-items-ptab");
   const sorts = [
     ["rarity", "レア度"],
     ["name", "名前"],
@@ -3412,6 +3460,7 @@ function renderItems() {
       <p class="hint">上段は基礎部品8種（各 ${state.partStack.toLocaleString()}）。下段は収容アイテム（1枠${state.itemStack}個・${cap}種類）。</p>
       <div class="parts-row" id="grid-parts">${partSlots}</div>
       <div class="rarity-tabs">${tabs}</div>
+      <div class="rarity-tabs">${partTabs}</div>
       <div class="sort-tools">${sorts}</div>
       <div class="slot-grid" id="grid-storage">${storageSlots}</div>
     </div>
@@ -3471,6 +3520,9 @@ function bindSortEvents() {
 
   document.querySelectorAll("[data-rtab]").forEach((btn) => {
     btn.onclick = () => { itemsRarityTab = btn.dataset.rtab; render(); };
+  });
+  document.querySelectorAll("[data-items-ptab]").forEach((btn) => {
+    btn.onclick = () => { itemsPartTab = btn.dataset.itemsPtab; render(); };
   });
   document.querySelectorAll("[data-sort]").forEach((btn) => {
     btn.onclick = () => { itemsSortBy = btn.dataset.sort; render(); };
@@ -3686,7 +3738,7 @@ function openEnhanceOverlay(slotId) {
     <div class="enhance-head">
       <img src="assets/item/${piece.id}.png" alt="" onerror="this.style.opacity='0.2'">
       <div>
-        <h4>${escapeHtml(meta?.name || piece.id)}</h4>
+        <h4>${partBadgeHtml(piece.id)}${escapeHtml(meta?.name || piece.id)}</h4>
         <div class="sub">Lv.${piece.lv} / ${maxLv}　${rarityStars(meta?.rarity)}　+${Math.round((GAME_DATA.gearEnhance.statPerLv || 0) * 1000) / 10}%/Lv</div>
       </div>
     </div>
@@ -4460,6 +4512,9 @@ function filteredCraftableList(state) {
   }
   if (alchemyKindTab !== "ALL") list = list.filter((m) => m.kind === alchemyKindTab);
   if (alchemyRarityTab !== "ALL") list = list.filter((m) => m.rarity === alchemyRarityTab);
+  if (alchemyPartTab !== "ALL" && shop?.kinds.some((k) => k === "gear" || k === "attach")) {
+    list = list.filter((m) => gearPartFilterId(m) === alchemyPartTab);
+  }
   if (alchemyCraftableOnly) list = list.filter((m) => craftAffordable(state, m));
   const rank = (r) => RARITY_RANK[r] ?? 0;
   list.sort((a, b) => {
@@ -4587,7 +4642,7 @@ function craftCardHtml(state, meta) {
     <div class="craft-out">
       <img src="assets/item/${meta.id}.png" alt="" onerror="this.style.opacity='0.2'">
       <div>
-        <div class="nm" style="color:${gradeColor(meta.id)}">${escapeHtml(meta.name)}<span class="stars">${rarityStars(meta.rarity)}</span></div>
+        <div class="nm" style="color:${gradeColor(meta.id)}">${partBadgeHtml(meta.id)}${escapeHtml(meta.name)}<span class="stars">${rarityStars(meta.rarity)}</span></div>
         <span class="craft-kind">${CRAFT_KIND_LABELS[meta.kind] || meta.kind}</span>
         ${rangeNote}${skill}
         <div class="craft-stock">在庫 ${storageCount(state, meta.id)}</div>
@@ -4612,6 +4667,8 @@ function renderCraftShop(shopId) {
   const rarityTabs = ["ALL", "SS", "S", "A", "B", "C", "D", "E"].map((t) =>
     `<button type="button" class="${alchemyRarityTab === t ? "active" : ""}" data-alchemy-rtab="${t}">${t === "ALL" ? "すべて" : rarityStars(t)}</button>`
   ).join("");
+  const showPartTabs = !shop || shop.kinds.some((k) => k === "gear" || k === "attach");
+  const partTabs = showPartTabs ? gearPartFilterTabsHtml(alchemyPartTab, "data-alchemy-ptab") : "";
   const sorts = [
     ["rarity", "★"],
     ["name", "名前"],
@@ -4637,6 +4694,10 @@ function renderCraftShop(shopId) {
       <span class="label">レア度</span>
       <div class="rarity-tabs" style="margin:0">${rarityTabs}</div>
     </div>
+    ${showPartTabs ? `<div class="craft-toolbar">
+      <span class="label">部位</span>
+      <div class="rarity-tabs" style="margin:0">${partTabs}</div>
+    </div>` : ""}
     <div class="craft-toolbar">
       <span class="label">並び替え</span>
       <div class="sort-tools" style="margin:0">${sorts}</div>
@@ -4956,18 +5017,19 @@ function itemHoverCardHtml(el) {
   }
 
   const fx = itemHoverEffect(meta, id);
-  const wt = weaponTypeOf(id);
-  const wtBadge = wt ? `<span class="wt-badge wt-${wt}">${weaponTypeName(id)}</span> ` : "";
+  const partBadge = partBadgeHtml(id);
   const statsHtml = itemHoverStatsHtml(stat);
   const fxHtml = (fx.name || fx.desc)
     ? `<div class="item-hover-fx">${fx.name ? `<strong>${escapeHtml(fx.name)}</strong>` : ""}<p>${escapeHtml(fx.desc || "効果説明なし")}</p></div>`
     : `<div class="item-hover-fx"><p>効果説明なし</p></div>`;
+  const partName = gearPartName(id);
+  if (partName && !sub.includes(partName)) sub = `${partName} / ${sub}`;
 
   return `<div class="item-hover-kicker">INSPECT // ${escapeHtml((meta.kind || "ITEM").toUpperCase())}</div>
     <div class="item-hover-head">
       <img src="assets/item/${id}.png" alt="" onerror="this.style.opacity='0.2'">
       <div>
-        <div class="nm">${wtBadge}${escapeHtml(meta.name)}</div>
+        <div class="nm">${partBadge}${escapeHtml(meta.name)}</div>
         <div class="stars">${rarityStars(rarity)}</div>
         <div class="sub">${escapeHtml(sub)}</div>
       </div>
@@ -5224,6 +5286,9 @@ function bindViewEvents() {
     });
     document.querySelectorAll("[data-alchemy-rtab]").forEach((btn) => {
       btn.onclick = () => { alchemyRarityTab = btn.dataset.alchemyRtab; render(); };
+    });
+    document.querySelectorAll("[data-alchemy-ptab]").forEach((btn) => {
+      btn.onclick = () => { alchemyPartTab = btn.dataset.alchemyPtab; render(); };
     });
     document.querySelectorAll("[data-alchemy-sort]").forEach((btn) => {
       btn.onclick = () => { alchemySortBy = btn.dataset.alchemySort; render(); };

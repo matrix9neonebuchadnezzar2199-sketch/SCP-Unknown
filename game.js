@@ -1210,6 +1210,27 @@ function weaponTypeName(id) {
   const t = weaponTypeOf(id);
   return GAME_DATA.weaponTypes?.find((w) => w.id === t)?.name || "";
 }
+
+/** フィルタ用の部位ID。アタッチは枠をまとめ、メインは銃／刃に分ける */
+function gearPartFilterId(id) {
+  const meta = typeof id === "string" ? itemMeta(id) : id;
+  if (!meta) return null;
+  if (meta.kind === "attach") return "attach";
+  if (meta.gear === "mainWeapon") return weaponTypeOf(meta.id) || "gun";
+  if (meta.gear === "accessory") return "accessory";
+  return meta.gear || null;
+}
+
+/** バッジ用の短い部位名（頭／銃／アーマー 等） */
+function gearPartName(id) {
+  const meta = typeof id === "string" ? itemMeta(id) : id;
+  if (!meta) return "";
+  if (meta.kind === "attach") {
+    return GAME_DATA.attachSlots.find((s) => s.id === meta.attachSlot)?.name || "アタッチ";
+  }
+  const pid = gearPartFilterId(meta);
+  return GAME_DATA.gearParts?.find((p) => p.id === pid)?.name || "";
+}
 function isPart(id) {
   return itemMeta(id)?.kind === "part";
 }

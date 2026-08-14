@@ -654,6 +654,19 @@ const GAME_DATA = {
     { id: "acc3", name: "アクセサリー３" },
   ],
 
+  /** 装備アイテムの部位バッジ／フィルタ用。銃と刃はメインウエポンを分ける */
+  gearParts: [
+    { id: "head", name: "頭" },
+    { id: "clothes", name: "服" },
+    { id: "armor", name: "アーマー" },
+    { id: "shoes", name: "靴" },
+    { id: "gun", name: "銃" },
+    { id: "blade", name: "刃" },
+    { id: "subWeapon", name: "サブ" },
+    { id: "accessory", name: "アクセ" },
+    { id: "attach", name: "アタッチ" },
+  ],
+
   operatorBase: { hp: 100, atk: 18, anm: 12, def: 16, spd: 20, luck: 12 },
   operatorStatMax: 255,
 

@@ -138,6 +138,15 @@ ok("dismantle bonus text", String(dis.msg).includes("選別"), dis.msg);
   eq("scrap timeshard anomalon", ctx.storageDismantlePartQty(sY, "p_anomalon"), 6);
   eq("scrap timeshard cell", ctx.storageDismantlePartQty(sY, "p_cell"), 2);
 }
+eq("part helm", ctx.gearPartFilterId("eq_helm"), "head");
+eq("part rifle", ctx.gearPartFilterId("eq_rifle"), "gun");
+eq("part baton", ctx.gearPartFilterId("eq_baton"), "blade");
+eq("part vest", ctx.gearPartFilterId("eq_vest"), "armor");
+eq("part name helm", ctx.gearPartName("eq_helm"), "頭");
+eq("part name rifle", ctx.gearPartName("eq_rifle"), "銃");
+eq("part attach id", ctx.gearPartFilterId("att_reddot"), "attach");
+eq("part attach name", ctx.gearPartName("att_reddot"), "サイト");
+ok("gearParts", Array.isArray(G.gearParts) && G.gearParts.length >= 8);
 const sMap = ctx.createNewState();
 const pick = G.mapSites.find((s) => s.id !== sMap.mapSite && !s.limited) || G.mapSites[0];
 const rMap = ctx.selectMapSite(sMap, pick.id);
@@ -544,6 +553,14 @@ def main() -> int:
         failed += 1
     else:
         print("OK  item hover inspect")
+    if "function partBadgeHtml" not in html or "data-items-ptab" not in html or "data-alchemy-ptab" not in html:
+        print("FAIL 装備部位バッジ／フィルタが無い")
+        failed += 1
+    elif "gearParts:" not in (ROOT / "data.js").read_text(encoding="utf-8"):
+        print("FAIL data.js に gearParts が無い")
+        failed += 1
+    else:
+        print("OK  gear part badges")
     if ".squad-mini .icon, .squad-mini .catalog-art" not in html or "width: 80px; height: 80px" not in html:
         print("FAIL 展開部隊アイコン枠が 80px になっていない")
         failed += 1
@@ -675,6 +692,8 @@ def main() -> int:
         ("seedMaxAttachmentsForVerify", "verify helper kept"),
         ("function allocateSiteNode", "allocateSiteNode"),
         ("function sitePassives", "sitePassives"),
+        ("function gearPartFilterId", "gearPartFilterId"),
+        ("function gearPartName", "gearPartName"),
     ):
         if needle not in game:
             print(f"FAIL game.js に {label} が無い")
