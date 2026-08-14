@@ -482,9 +482,12 @@ function acquireShots(sim, state) {
     let shot = false;
     for (const s of sim.sentries || []) {
       if ((s.ammo || 0) <= 0) continue;
-      if (Math.hypot(r.x - s.x, r.y - s.y) > SENTRY_RADIUS) continue;
+      if (Math.hypot(r.x - s.x, r.y - s.y) > sentryRadiusOf(state)) continue;
       fireShot(sim, s.x, s.y, r, "sentry", s);
-      s.ammo = Math.max(0, (typeof s.ammo === "number" ? s.ammo : SENTRY_AMMO_MAX) - 1);
+      const save = sitePassives(state).sentrySave || 0;
+      if (save <= 0 || Math.random() >= save) {
+        s.ammo = Math.max(0, (typeof s.ammo === "number" ? s.ammo : sentryAmmoMaxOf(state)) - 1);
+      }
       if (s.ammo <= 0) s.emptyAtMs = Date.now();
       fired = true;
       shot = true;
@@ -678,7 +681,7 @@ function drawSector(ctx, sim) {
     const room = roomContaining(sector, s.x, s.y);
     return room && isRoomRevealed(sim, room.id);
   });
-  drawSentries(ctx, placed, typeof sentryPreview !== "undefined" ? sentryPreview : null);
+  drawSentries(ctx, placed, typeof sentryPreview !== "undefined" ? sentryPreview : null, sentryRadiusOf(typeof state !== "undefined" ? state : null));
   if (sim.boss) drawBoss(ctx, sim.boss);
 
   for (const f of sim.flashes) {
@@ -708,7 +711,7 @@ function expireEmptySentries(sim) {
   const list = sim.sentries || [];
   for (let i = list.length - 1; i >= 0; i--) {
     const s = list[i];
-    if (typeof s.ammo !== "number") s.ammo = SENTRY_AMMO_MAX;
+    if (typeof s.ammo !== "number") s.ammo = sentryAmmoMaxOf(typeof state !== "undefined" ? state : null);
     if (s.ammo > 0) {
       delete s.emptyAtMs;
       continue;
@@ -735,7 +738,8 @@ function sentryIndexAt(sentries, x, y) {
   return best;
 }
 
-function drawSentries(ctx, sentries, preview) {
+function drawSentries(ctx, sentries, preview, radius) {
+  const rad = radius || SENTRY_RADIUS;
   const items = sentries.map((s) => ({ s, ghost: false }));
   if (preview) items.push({ s: preview, ghost: true });
   for (const { s, ghost } of items) {
@@ -746,13 +750,13 @@ function drawSentries(ctx, sentries, preview) {
     ctx.lineWidth = ghost ? 1 : 1.4;
     ctx.setLineDash(ghost ? [5, 4] : [3, 5]);
     ctx.beginPath();
-    ctx.arc(s.x, s.y, SENTRY_RADIUS, 0, Math.PI * 2);
+    ctx.arc(s.x, s.y, rad, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
 
     ctx.fillStyle = `rgba(${rgb},${ghost ? 0.15 : 0.22})`;
     ctx.beginPath();
-    ctx.arc(s.x, s.y, SENTRY_RADIUS, 0, Math.PI * 2);
+    ctx.arc(s.x, s.y, rad, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = ghost ? "rgba(196,163,74,0.55)" : (empty ? "#b03028" : "#c4a34a");

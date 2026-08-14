@@ -53,6 +53,7 @@ function createNewState() {
     breachCooldownUntil: 0,
     sentries: [],
     revealedRooms: [],
+    siteNodes: ["n_start"],
     profile: { codename: newGuestCodename(), clearance: 2, title: "収容担当" },
     chatLog: [
       { channel: "all", user: "指揮官", text: "異常を戦力化せよ。Thaumiel運用を維持すること。", ts: Date.now() },
@@ -377,8 +378,13 @@ function enhanceStepCost(fromLv) {
   };
 }
 
-/** fromLv から toLv まで一気に上げる合計 */
-function gearEnhanceCostRange(fromLv, toLv) {
+function scaleIntCost(n, mult) {
+  if (!n) return 0;
+  return Math.max(1, Math.floor(n * mult + 1e-9));
+}
+
+/** fromLv から toLv まで一気に上げる合計。state があれば拠点パッシブの割引を掛ける */
+function gearEnhanceCostRange(fromLv, toLv, st) {
   const spec = GAME_DATA.gearEnhance;
   const maxLv = spec.maxLv || 100;
   const from = Math.max(0, fromLv | 0);
@@ -394,6 +400,13 @@ function gearEnhanceCostRange(fromLv, toLv) {
       mats[id] = (mats[id] || 0) + n;
     }
   }
+  const p = sitePassives(st);
+  const matMult = p.enhanceMat || 1;
+  const budMult = p.enhanceBudget || 1;
+  if (matMult !== 1) {
+    for (const id of Object.keys(mats)) mats[id] = scaleIntCost(mats[id], matMult);
+  }
+  if (budMult !== 1) budget = scaleIntCost(budget, budMult);
   return { maxed: false, fromLv: from, toLv: to, mats, budget };
 }
 
@@ -402,7 +415,7 @@ function enhanceOperatorGear(state, slotId, addLevels) {
   const piece = gearPieceOf(state.operatorGear[slotId]);
   if (!piece) return { ok: false, msg: "先に装備してください" };
   const add = Math.max(1, addLevels | 0);
-  const cost = gearEnhanceCostRange(piece.lv, piece.lv + add);
+  const cost = gearEnhanceCostRange(piece.lv, piece.lv + add, state);
   if (cost.maxed) return { ok: false, msg: "強化上限です" };
   if (cost.toLv <= piece.lv) return { ok: false, msg: "強化幅がありません" };
   if (state.budget < cost.budget) return { ok: false, msg: `予算不足 (要 ${cost.budget})` };
@@ -947,8 +960,178 @@ function applyStaminaRegen(state) {
 
 function applySiteBonuses(state) {
   const site = GAME_DATA.siteUpgrades[state.siteLevel - 1] || GAME_DATA.siteUpgrades[0];
-  state.staminaMax = GAME_DATA.staminaMaxBase + site.staminaBonus;
-  state.chamberMax = site.chamberSlots;
+  const p = sitePassives(state);
+  state.staminaMax = GAME_DATA.staminaMaxBase + site.staminaBonus + (p.stamina || 0);
+  state.chamberMax = site.chamberSlots + (p.chamber || 0);
+}
+
+function siteTreeSpec() {
+  return GAME_DATA.siteTree || { startId: "n_start", nodes: [], edges: [], startPoints: 3, pointsPerLevel: 4 };
+}
+
+function siteTreeNodeMap() {
+  const map = new Map();
+  for (const n of siteTreeSpec().nodes || []) map.set(n.id, n);
+  return map;
+}
+
+function siteTreeAdj() {
+  const adj = new Map();
+  const add = (a, b) => {
+    if (!adj.has(a)) adj.set(a, []);
+    adj.get(a).push(b);
+  };
+  for (const [a, b] of siteTreeSpec().edges || []) {
+    add(a, b);
+    add(b, a);
+  }
+  return adj;
+}
+
+function emptySitePassives() {
+  return {
+    sentryMax: 0,
+    sentryAmmo: 0,
+    sentryRadius: 0,
+    sentrySave: 0,
+    enhanceMat: 1,
+    enhanceBudget: 1,
+    craftCost: 1,
+    dismantleChance: 0,
+    dismantleExtra: 1,
+    stamina: 0,
+    dropBonus: 0,
+    chamber: 0,
+    reconSpeed: 1,
+  };
+}
+
+function mergeSiteEffects(out, effects) {
+  if (!effects) return;
+  for (const [k, v] of Object.entries(effects)) {
+    if (k === "enhanceMat" || k === "enhanceBudget" || k === "craftCost" || k === "reconSpeed") {
+      out[k] = (out[k] || 1) * v;
+    } else {
+      out[k] = (out[k] || 0) + v;
+    }
+  }
+}
+
+function ensureSiteTree(state) {
+  const startId = siteTreeSpec().startId || "n_start";
+  if (!Array.isArray(state.siteNodes) || !state.siteNodes.length) {
+    state.siteNodes = [startId];
+    return;
+  }
+  if (!state.siteNodes.includes(startId)) state.siteNodes.unshift(startId);
+}
+
+function siteAllocatedSet(state) {
+  ensureSiteTree(state);
+  return new Set(state.siteNodes);
+}
+
+function sitePointsTotal(state) {
+  const spec = siteTreeSpec();
+  const lv = Math.max(1, state.siteLevel | 0);
+  return (spec.startPoints || 3) + (lv - 1) * (spec.pointsPerLevel || 4);
+}
+
+function sitePointsSpent(state) {
+  const map = siteTreeNodeMap();
+  let n = 0;
+  for (const id of state.siteNodes || []) {
+    const node = map.get(id);
+    if (node) n += node.cost || 0;
+  }
+  return n;
+}
+
+function sitePointsUnspent(state) {
+  return Math.max(0, sitePointsTotal(state) - sitePointsSpent(state));
+}
+
+function siteNodeReachable(state, nodeId) {
+  const spec = siteTreeSpec();
+  if (nodeId === spec.startId) return true;
+  const allocated = siteAllocatedSet(state);
+  const adj = siteTreeAdj().get(nodeId) || [];
+  return adj.some((id) => allocated.has(id));
+}
+
+function sitePassives(state) {
+  const out = emptySitePassives();
+  if (!state) return out;
+  const map = siteTreeNodeMap();
+  ensureSiteTree(state);
+  for (const id of state.siteNodes) {
+    mergeSiteEffects(out, map.get(id)?.effects);
+  }
+  return out;
+}
+
+function siteDropBonus(state) {
+  const site = GAME_DATA.siteUpgrades[state.siteLevel - 1];
+  return (site?.dropBonus || 0) + (sitePassives(state).dropBonus || 0);
+}
+
+function sentryMaxOf(st) {
+  const base = typeof SENTRY_MAX === "number" ? SENTRY_MAX : 2;
+  return base + (sitePassives(st).sentryMax || 0);
+}
+
+function sentryAmmoMaxOf(st) {
+  const base = typeof SENTRY_AMMO_MAX === "number" ? SENTRY_AMMO_MAX : 20;
+  return base + (sitePassives(st).sentryAmmo || 0);
+}
+
+function sentryRadiusOf(st) {
+  const base = typeof SENTRY_RADIUS === "number" ? SENTRY_RADIUS : 56;
+  return base + (sitePassives(st).sentryRadius || 0);
+}
+
+function allocateSiteNode(state, nodeId) {
+  ensureSiteTree(state);
+  const node = siteTreeNodeMap().get(nodeId);
+  if (!node) return { ok: false, msg: "未知のノードです" };
+  if (state.siteNodes.includes(nodeId)) return { ok: false, msg: "割り当て済みです" };
+  if (!siteNodeReachable(state, nodeId)) return { ok: false, msg: "隣接する取得済みノードが必要です" };
+  const cost = node.cost || 0;
+  if (sitePointsUnspent(state) < cost) return { ok: false, msg: "プロトコル点が不足しています" };
+  state.siteNodes.push(nodeId);
+  applySiteBonuses(state);
+  saveGame(state);
+  return { ok: true, msg: `${node.name} を割り当て` };
+}
+
+function respecSiteTree(state) {
+  const spec = siteTreeSpec();
+  const spent = sitePointsSpent(state);
+  if (spent <= 0) return { ok: false, msg: "解除するノードがありません" };
+  const cost = spec.respecCost || 400;
+  if (state.budget < cost) return { ok: false, msg: `予算不足 (要 ${cost})` };
+  state.budget -= cost;
+  state.siteNodes = [spec.startId];
+  applySiteBonuses(state);
+  saveGame(state);
+  return { ok: true, msg: `プロトコルを再編成（-${cost}）` };
+}
+
+function applyDismantleBonus(state, yields) {
+  const p = sitePassives(state);
+  const out = { ...yields };
+  let bonus = null;
+  const chance = p.dismantleChance || 0;
+  if (chance > 0 && Math.random() < chance) {
+    const keys = Object.keys(out);
+    if (keys.length) {
+      const k = keys[Math.floor(Math.random() * keys.length)];
+      const extra = p.dismantleExtra || 1;
+      out[k] = (out[k] || 0) + extra;
+      bonus = { id: k, extra };
+    }
+  }
+  return { yields: out, bonus };
 }
 
 /* ===== アイテム定義の横断索引 ===== */
@@ -1308,13 +1491,15 @@ function dismantlePending(state, index, qty) {
   const yields = dismantleYield(id);
   if (!yields) return { ok: false, msg: `${itemName(id)} はこれ以上分解できません` };
   const took = takePending(state, index, qty);
+  const rolled = applyDismantleBonus(state, yields);
   const parts = [];
-  for (const [pid, n] of Object.entries(yields)) {
+  for (const [pid, n] of Object.entries(rolled.yields)) {
     const total = n * took;
     const leftover = storageAdd(state, pid, total);
     parts.push(`${itemName(pid)}×${total - leftover}`);
   }
-  return { ok: true, msg: `${itemName(id)} ×${took} を分解 — ${parts.join(" / ")}` };
+  const extra = rolled.bonus ? ` / 選別 +${itemName(rolled.bonus.id)}×${rolled.bonus.extra}` : "";
+  return { ok: true, msg: `${itemName(id)} ×${took} を分解 — ${parts.join(" / ")}${extra}` };
 }
 
 /** 倉庫のスロットを予算化する。武器の場合、アタッチ設定は個体と一緒に消える（アタッチ在庫は減らない） */
@@ -1391,13 +1576,15 @@ function dismantleStorageSlot(state, slotIndex, qty) {
   if (slot.uid) dropWeaponLoadout(state, slot.uid);
   slot.qty -= take;
   if (slot.qty <= 0) state.storage[slotIndex] = null;
+  const rolled = applyDismantleBonus(state, yields);
   const parts = [];
-  for (const [pid, n] of Object.entries(yields)) {
+  for (const [pid, n] of Object.entries(rolled.yields)) {
     const total = n * take;
     const leftover = storageAdd(state, pid, total);
     parts.push(`${itemName(pid)}×${total - leftover}`);
   }
-  return { ok: true, msg: `${itemName(id)} ×${take} を分解 — ${parts.join(" / ")}` };
+  const extra = rolled.bonus ? ` / 選別 +${itemName(rolled.bonus.id)}×${rolled.bonus.extra}` : "";
+  return { ok: true, msg: `${itemName(id)} ×${take} を分解 — ${parts.join(" / ")}${extra}` };
 }
 
 function spendStamina(state, amount) {
@@ -1599,7 +1786,7 @@ function runBattle(state, floorData) {
   if (win) {
     log.push("── 探索成功 ──");
     events.push({ type: "end", win: true, text: log[log.length - 1] });
-    const site = GAME_DATA.siteUpgrades[state.siteLevel - 1];
+    const dropB = siteDropBonus(state);
     const xpEach = Math.floor(floorData.xpBase * (1 + squadUnits.length * 0.05));
     for (const u of squadUnits) {
       const cat = GAME_DATA.catalog[u.catalogId];
@@ -1616,7 +1803,7 @@ function runBattle(state, floorData) {
       log.push(`${cat.name} +${xpEach} XP (Lv.${u.level})`);
     }
 
-    const budget = Math.floor(floorData.budgetBase * (1 + (site?.dropBonus || 0)));
+    const budget = Math.floor(floorData.budgetBase * (1 + dropB));
     state.budget += budget;
     budgetGain = budget;
     log.push(`予算 +${budget}`);
@@ -1627,7 +1814,7 @@ function runBattle(state, floorData) {
     loot.push({ id: partId, name: itemName(partId), type: "part", qty: partQty });
     log.push(`回収: ${itemName(partId)} ×${partQty}`);
 
-    if (Math.random() < floorData.dropChance + (site?.dropBonus || 0)) {
+    if (Math.random() < floorData.dropChance + dropB) {
       const objId = rollObjectDrop(floorData.depth);
       addInventory(state, objId);
       loot.push({ id: objId, name: itemName(objId), type: "material", qty: 1 });
@@ -1644,13 +1831,13 @@ function runBattle(state, floorData) {
       if (oid) linked.add(oid);
     }
     for (const oid of linked) {
-      if (Math.random() >= 0.22 + (site?.dropBonus || 0)) continue;
+      if (Math.random() >= 0.22 + dropB) continue;
       addInventory(state, oid);
       loot.push({ id: oid, name: itemName(oid), type: "material", qty: 1 });
       log.push(`特異回収: ${itemName(oid)}`);
     }
 
-    if (floorData.catalogDrop && Math.random() < 0.15 + (site?.dropBonus || 0)) {
+    if (floorData.catalogDrop && Math.random() < 0.15 + dropB) {
       const cid = floorData.catalogDrop;
       if (!state.discovered.includes(cid)) {
         state.discovered.push(cid);
@@ -1660,7 +1847,7 @@ function runBattle(state, floorData) {
       }
     }
 
-    if (Math.random() < floorData.artifactChance + (site?.dropBonus || 0) * 0.5) {
+    if (Math.random() < floorData.artifactChance + dropB * 0.5) {
       const art = GAME_DATA.artifacts[Math.floor(Math.random() * GAME_DATA.artifacts.length)];
       addInventory(state, art.id);
       loot.push({ id: art.id, name: art.name, type: "artifact", qty: 1 });
@@ -1902,7 +2089,7 @@ function maxCraftCount(state, outputId) {
   const meta = itemMeta(outputId);
   if (!meta?.craft) return 0;
   let max = Number.MAX_SAFE_INTEGER;
-  const unitCost = meta.craftCost || 0;
+  const unitCost = Math.max(0, Math.floor((meta.craftCost || 0) * (sitePassives(state).craftCost || 1) + 1e-9));
   if (unitCost > 0) max = Math.min(max, Math.floor(state.budget / unitCost));
   for (const [pid, n] of Object.entries(meta.craft)) {
     if (n > 0) max = Math.min(max, Math.floor(storageCount(state, pid) / n));
@@ -1932,7 +2119,7 @@ function maxCraftCount(state, outputId) {
 function craftItem(state, outputId, times = 1) {
   const meta = itemMeta(outputId);
   if (!meta?.craft) return { ok: false, msg: "製作できないアイテムです" };
-  const cost = (meta.craftCost || 0) * times;
+  const cost = Math.max(0, Math.floor((meta.craftCost || 0) * times * (sitePassives(state).craftCost || 1) + 1e-9));
   if (state.budget < cost) return { ok: false, msg: `予算不足 (要 ${cost})` };
   for (const [pid, n] of Object.entries(meta.craft)) {
     if (!storageHas(state, pid, n * times)) {
@@ -2055,9 +2242,10 @@ function migrateState(state) {
   delete state.operatorGearLv;
   migrateWeaponUids(state);
   migrateNonGunWeaponStacks(state);
+  ensureSiteTree(state);
   normalizeSquad(state);
   if (!Array.isArray(state.sentries)) state.sentries = [];
-  else state.sentries = cloneSentries(state.sentries);
+  else state.sentries = cloneSentries(state.sentries, state);
   if (!Array.isArray(state.revealedRooms)) state.revealedRooms = [];
   if (state.sectorCleared) {
     if (state.floor < 50) {
@@ -2321,8 +2509,8 @@ function ensureMapProgress(state) {
   }
 }
 
-function cloneSentries(list) {
-  const ammoMax = typeof SENTRY_AMMO_MAX === "number" ? SENTRY_AMMO_MAX : 20;
+function cloneSentries(list, st) {
+  const ammoMax = sentryAmmoMaxOf(st);
   return (Array.isArray(list) ? list : []).map((s) => {
     const ammo = typeof s.ammo === "number"
       ? Math.max(0, Math.min(ammoMax, Math.floor(s.ammo)))
@@ -2337,8 +2525,8 @@ function cloneRevealedRooms(list) {
   return [...new Set((Array.isArray(list) ? list : []).map(Number).filter((id) => id >= 0))];
 }
 
-function copySiteField(key, src) {
-  if (key === "sentries") return cloneSentries(src.sentries);
+function copySiteField(key, src, st) {
+  if (key === "sentries") return cloneSentries(src.sentries, st);
   if (key === "revealedRooms") return cloneRevealedRooms(src.revealedRooms);
   return src[key];
 }
@@ -2347,14 +2535,14 @@ function snapshotSiteProgress(state) {
   ensureMapProgress(state);
   const id = state.mapSite || defaultMapSiteId();
   const snap = {};
-  for (const k of SITE_PROGRESS_KEYS) snap[k] = copySiteField(k, state);
+  for (const k of SITE_PROGRESS_KEYS) snap[k] = copySiteField(k, state, state);
   state.mapProgress[id] = snap;
 }
 
 function applySiteProgress(state, siteId) {
   ensureMapProgress(state);
   const p = state.mapProgress[siteId] || emptySiteProgress();
-  for (const k of SITE_PROGRESS_KEYS) state[k] = copySiteField(k, p);
+  for (const k of SITE_PROGRESS_KEYS) state[k] = copySiteField(k, p, state);
   state.mapSite = siteId;
 }
 
@@ -2362,7 +2550,7 @@ function siteProgressOf(state, siteId) {
   ensureMapProgress(state);
   if (siteId === (state.mapSite || defaultMapSiteId())) {
     const live = {};
-    for (const k of SITE_PROGRESS_KEYS) live[k] = copySiteField(k, state);
+    for (const k of SITE_PROGRESS_KEYS) live[k] = copySiteField(k, state, state);
     return live;
   }
   return state.mapProgress[siteId] || emptySiteProgress();
@@ -2599,7 +2787,8 @@ function boostSector(state) {
 }
 
 function sectorSpeedMult(state) {
-  return (state.boostUntil || 0) > Date.now() ? 2 : 1;
+  const boost = (state.boostUntil || 0) > Date.now() ? 2 : 1;
+  return boost * (sitePassives(state).reconSpeed || 1);
 }
 
 /** ボス撃破後に次深度へ進む */

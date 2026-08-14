@@ -1133,6 +1133,59 @@ a { color: rgb(var(--color-secondary)); }
 .site-delta { font-size: 12px; margin: 8px 0 12px; line-height: 1.7; }
 .site-delta .up, .site-hover .up { color: #5dca7a; }
 
+.ptree-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  margin: 0 0 12px; font-size: 12px; color: rgb(var(--color-text-muted));
+}
+.ptree-bar strong { color: rgb(var(--color-accent)); font-variant-numeric: tabular-nums; }
+.ptree-layout {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  gap: 14px; align-items: start;
+}
+@media (max-width: 860px) { .ptree-layout { grid-template-columns: 1fr; } }
+.ptree-stage {
+  position: relative; background: #070a10;
+  border: 1px solid rgb(var(--color-frame)); border-radius: var(--radius-card);
+  overflow: hidden;
+}
+.ptree-stage svg { width: 100%; height: auto; display: block; }
+.ptree-pins { position: absolute; inset: 0; }
+.ptree-node {
+  position: absolute; transform: translate(-50%, -50%);
+  width: 16px; height: 16px; padding: 0; border-radius: 50%;
+  border: 2px solid #3a4a5c; background: #101820; cursor: pointer; z-index: 1;
+}
+.ptree-node.notable { width: 24px; height: 24px; }
+.ptree-node.keystone {
+  width: 28px; height: 28px; border-radius: 3px;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.ptree-node.start { width: 26px; height: 26px; border-width: 2px; }
+.ptree-node.c-sentry { border-color: #c4a34a; }
+.ptree-node.c-gear { border-color: #7a8a58; }
+.ptree-node.c-salvage { border-color: #b07048; }
+.ptree-node.c-ops { border-color: #5a7a98; }
+.ptree-node.c-link { border-color: #6a7a88; }
+.ptree-node.c-core { border-color: #c4a34a; }
+.ptree-node.on { background: #c4a34a; box-shadow: 0 0 10px #c4a34a88; }
+.ptree-node.c-gear.on { background: #7a8a58; box-shadow: 0 0 10px #7a8a5888; }
+.ptree-node.c-salvage.on { background: #b07048; box-shadow: 0 0 10px #b0704888; }
+.ptree-node.c-ops.on { background: #5a7a98; box-shadow: 0 0 10px #5a7a9888; }
+.ptree-node.reach:not(.on) { box-shadow: 0 0 0 1px #c4a34a66; }
+.ptree-node.locked { opacity: 0.32; }
+.ptree-node.selected { outline: 2px solid #fff; outline-offset: 2px; z-index: 2; }
+.ptree-legend {
+  display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px;
+  font-size: 10px; letter-spacing: 0.08em; color: rgb(var(--color-text-muted));
+}
+.ptree-legend i {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  margin-right: 4px; vertical-align: middle; border: 1px solid currentColor;
+}
+.site-facility-row {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px;
+}
+
 .craft-toolbar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 12px; }
 .craft-toolbar .label { font-size: 10px; letter-spacing: 0.12em; color: rgb(var(--color-text-muted)); margin-right: 4px; }
 .craft-grid {
@@ -1837,6 +1890,8 @@ let codexFound = "ALL";
 let codexKind = "ALL";
 let codexSort = "scp";
 let siteInspectLevel = 0;
+let siteInspectNode = "n_start";
+let siteInspectKind = "tree";
 let alchemyKindTab = "ALL";
 let alchemyRarityTab = "ALL";
 let alchemySortBy = "rarity";
@@ -2169,7 +2224,7 @@ function updateSentryAmmoHud(force) {
     return;
   }
   const list = state.sentries || [];
-  const ammoMax = typeof SENTRY_AMMO_MAX === "number" ? SENTRY_AMMO_MAX : 20;
+  const ammoMax = sentryAmmoMaxOf(state);
   const key = list.map((s) => `${s.ammo}|${(s.ammo || 0) <= 0 ? 1 : 0}`).join(";");
   if (!force && key === sentryAmmoHudKey) return;
   sentryAmmoHudKey = key;
@@ -2431,7 +2486,7 @@ function renderDashboard() {
         <div class="sector-wrap">
           <canvas id="sector-canvas" width="920" height="430" class="${sentryPlaceMode ? "place-sentry" : ""}"></canvas>
           ${sectorSim?.boss ? `<div class="sentry-banner">収容違反体が接近中 — 展開チームへ直進する</div>` : ""}
-          ${sentryPlaceMode ? `<div class="sentry-banner">解明した室内にセントリーガンを配置してください（${(state.sentries || []).length}/${SENTRY_MAX}）</div>` : ""}
+          ${sentryPlaceMode ? `<div class="sentry-banner">解明した室内にセントリーガンを配置してください（${(state.sentries || []).length}/${sentryMaxOf(state)}）</div>` : ""}
           <div class="sector-hud" id="sector-reveal">解明 0/0</div>
           <div class="sector-hud-meta">SCAN // JP-81 // ${mapSite.code} // DEPTH ${String(floorData.depth).padStart(2, "0")}</div>
         </div>
@@ -2443,7 +2498,7 @@ function renderDashboard() {
             <button type="button" class="btn btn-secondary btn-sentry${sentryPlaceMode ? " placing" : ""}" id="btn-sentry" title="解明した室内に自動射撃砲台を設置（最大2）。設置済みをクリックで削除">
               <svg viewBox="0 0 16 16" aria-hidden="true"><polygon points="8,2 14,14 2,14"/></svg>
               セントリーガン
-              <span class="sentry-count">${(state.sentries || []).length}/${SENTRY_MAX}</span>
+              <span class="sentry-count">${(state.sentries || []).length}/${sentryMaxOf(state)}</span>
             </button>
             <button type="button" class="btn btn-primary" id="btn-boost" title="許可証 1 枚 / 60秒間、巡回速度×2" ${state.stamina < 1 ? "disabled" : ""}>緊急展開（巡回速度×２）</button>
             <button type="button" class="btn btn-secondary" id="btn-force-breach" title="許可証 5 枚 / キル報酬なしで制圧率を即MAX" ${state.stamina < 5 || breachReady || state.sectorCleared ? "disabled" : ""}>強行突入（区画制圧率をMAX）</button>
@@ -3096,7 +3151,7 @@ function openEnhanceOverlay(slotId) {
   const slider = wrap.querySelector("#enhance-slider");
   const refresh = () => {
     const add = Number(slider.value) || 1;
-    const cost = gearEnhanceCostRange(piece.lv, piece.lv + add);
+    const cost = gearEnhanceCostRange(piece.lv, piece.lv + add, state);
     const cur = pieceCombatStat(piece);
     const preview = pieceCombatStat({ ...piece, lv: cost.toLv });
     wrap.querySelector("#enhance-delta").textContent = `+${add}`;
@@ -4056,13 +4111,97 @@ function renderSiteHover(inspect, cur) {
   </aside>`;
 }
 
+function ptreeClusterClass(cluster) {
+  return `c-${cluster || "core"}`;
+}
+
+function ptreeKindLabel(kind) {
+  if (kind === "keystone") return "キーストーン";
+  if (kind === "notable") return "著名";
+  if (kind === "start") return "起点";
+  return "小ノード";
+}
+
+function renderTreeHover(node, allocated, reachable, unspent) {
+  const on = allocated.has(node.id);
+  const cost = node.cost || 0;
+  const p = sitePassives(state);
+  let action = "";
+  if (on) {
+    action = `<p class="cost">割り当て済み。</p>`;
+  } else if (!reachable) {
+    action = `<p class="cost">隣接する取得済みノードから伸ばしてください。</p>`;
+  } else if (unspent < cost) {
+    action = `<p class="cost">プロトコル点が不足（要 ${cost} / 残 ${unspent}）。施設を拡張すると点が入る。</p>`;
+  } else {
+    action = `<button type="button" class="btn btn-accent" id="btn-alloc-node" data-alloc="${node.id}">割り当て — ${cost}点</button>`;
+  }
+  const effects = Object.entries(node.effects || {}).map(([k, v]) => {
+    const label = ({
+      sentryAmmo: "セントリー残弾", sentryRadius: "セントリー射程", sentryMax: "設置上限",
+      sentrySave: "残弾消費回避", enhanceMat: "強化素材", enhanceBudget: "強化予算",
+      craftCost: "クラフト予算", dismantleChance: "分解追加率", dismantleExtra: "分解追加個数",
+      stamina: "許可証上限", dropBonus: "ドロップ補正", chamber: "試験槽", reconSpeed: "巡回速度",
+    })[k] || k;
+    let shown = v;
+    if (k === "enhanceMat" || k === "enhanceBudget" || k === "craftCost" || k === "reconSpeed") {
+      shown = `${Math.round((v - 1) * 100)}%`;
+    } else if (k === "dismantleChance" || k === "sentrySave" || k === "dropBonus") {
+      shown = `${Math.round(v * 100)}%`;
+    } else if (v > 0 && k !== "dismantleExtra") shown = `+${v}`;
+    return `<div><dt>${label}</dt><dd>${shown}</dd></div>`;
+  }).join("") || `<div><dt>効果</dt><dd>なし</dd></div>`;
+  return `<aside class="site-hover">
+    <div class="kicker">${ptreeKindLabel(node.kind)} — ${node.cluster}</div>
+    <h2>${escapeHtml(node.name)}</h2>
+    <p class="desc">${escapeHtml(node.desc || "")}</p>
+    <dl class="site-hover-stats">${effects}</dl>
+    <p class="cost">現在パッシブ: 素材×${(p.enhanceMat || 1).toFixed(2)} / 分解追加 ${Math.round((p.dismantleChance || 0) * 100)}% / 砲台 ${sentryMaxOf(state)}</p>
+    ${action}
+  </aside>`;
+}
+
+function renderPtree(allocated, inspectId) {
+  const spec = GAME_DATA.siteTree;
+  const byId = siteTreeNodeMap();
+  const lines = (spec.edges || []).map(([a, b]) => {
+    const na = byId.get(a);
+    const nb = byId.get(b);
+    if (!na || !nb) return "";
+    const on = allocated.has(a) && allocated.has(b);
+    return `<line x1="${na.x}" y1="${na.y}" x2="${nb.x}" y2="${nb.y}" stroke="${on ? "#c4a34a" : "#243040"}" stroke-width="${on ? 2.2 : 1.2}"/>`;
+  }).join("");
+  const pins = (spec.nodes || []).map((n) => {
+    const on = allocated.has(n.id);
+    const reach = !on && siteNodeReachable(state, n.id);
+    const locked = !on && !reach;
+    const sel = n.id === inspectId ? " selected" : "";
+    const kind = n.kind === "keystone" || n.kind === "notable" || n.kind === "start" ? n.kind : "";
+    return `<button type="button" class="ptree-node ${ptreeClusterClass(n.cluster)} ${kind} ${on ? "on" : ""} ${reach ? "reach" : ""} ${locked ? "locked" : ""}${sel}" data-tree-id="${n.id}" style="left:${(n.x / 10).toFixed(2)}%;top:${((n.y / 680) * 100).toFixed(2)}%" title="${escapeHtml(n.name)}"></button>`;
+  }).join("");
+  return `<div>
+    <div class="ptree-stage">
+    <svg viewBox="0 0 1000 680" aria-hidden="true">${lines}</svg>
+    <div class="ptree-pins">${pins}</div>
+  </div>
+  <div class="ptree-legend">
+    <span><i style="background:#c4a34a"></i>砲台</span>
+    <span><i style="background:#7a8a58"></i>工廠</span>
+    <span><i style="background:#b07048"></i>解体</span>
+    <span><i style="background:#5a7a98"></i>運用</span>
+    <span>◇ キーストーン　● 著名</span>
+  </div>
+  </div>`;
+}
+
 function renderSite() {
+  ensureSiteTree(state);
   const cur = GAME_DATA.siteUpgrades[state.siteLevel - 1];
   const inspectLv = siteInspectOf();
   const inspect = GAME_DATA.siteUpgrades[inspectLv - 1];
-  const tree = GAME_DATA.siteUpgrades.map((s, i) => {
+  const facility = GAME_DATA.siteUpgrades.map((s, i) => {
     const { cls, tag } = siteNodeStatus(s.level);
-    const selected = s.level === inspectLv ? " selected" : "";
+    const selected = s.level === inspectLv && siteInspectKind === "facility" ? " selected" : "";
     const link = i < GAME_DATA.siteUpgrades.length - 1
       ? `<div class="site-link${s.level < state.siteLevel ? " on" : ""}"></div>`
       : "";
@@ -4074,11 +4213,33 @@ function renderSite() {
       </span>
     </button>${link}`;
   }).join("");
+  const allocated = siteAllocatedSet(state);
+  const nodeMap = siteTreeNodeMap();
+  const inspectId = nodeMap.has(siteInspectNode) ? siteInspectNode : GAME_DATA.siteTree.startId;
+  const treeNode = nodeMap.get(inspectId);
+  const unspent = sitePointsUnspent(state);
+  const total = sitePointsTotal(state);
+  const hover = renderTreeHover(treeNode, allocated, siteNodeReachable(state, inspectId), unspent);
+  const respecCost = GAME_DATA.siteTree.respecCost || 400;
+  const canRespec = sitePointsSpent(state) > 0 && state.budget >= respecCost;
   return `<div class="panel">
     <h2>拡張段階 <small style="font-weight:400;color:rgb(var(--color-text-muted))">Site Lv.${state.siteLevel} — ${escapeHtml(cur.name)}</small></h2>
     <div class="site-tree-layout">
-      <div class="site-tree">${tree}</div>
+      <div class="site-tree">${facility}</div>
       ${renderSiteHover(inspect, cur)}
+    </div>
+  </div>
+  <div class="panel">
+    <h2>プロトコルツリー</h2>
+    <div class="ptree-bar">
+      <span>プロトコル点 <strong>${unspent}</strong> / ${total}</span>
+      <span>施設Lvごとに +${GAME_DATA.siteTree.pointsPerLevel}</span>
+      <button type="button" class="btn btn-sm btn-secondary" id="btn-respec-tree" ${canRespec ? "" : "disabled"}>再編成 — ${respecCost}</button>
+    </div>
+    <p style="font-size:11px;color:rgb(var(--color-text-muted));margin:-4px 0 10px">取得済みに隣接するノードだけ割り当てできる。砲台・工廠・解体・運用の4クラスタ。</p>
+    <div class="ptree-layout">
+      ${renderPtree(allocated, inspectId)}
+      ${hover}
     </div>
   </div>`;
 }
@@ -4178,9 +4339,38 @@ function bindViewEvents() {
     document.querySelectorAll("[data-site-lv]").forEach((btn) => {
       btn.onclick = () => {
         siteInspectLevel = Number(btn.dataset.siteLv);
+        siteInspectKind = "facility";
         render();
       };
     });
+    document.querySelectorAll("[data-tree-id]").forEach((btn) => {
+      btn.onclick = () => {
+        siteInspectNode = btn.dataset.treeId;
+        siteInspectKind = "tree";
+        render();
+      };
+    });
+    const alloc = document.getElementById("btn-alloc-node");
+    if (alloc) alloc.onclick = () => {
+      const r = allocateSiteNode(state, alloc.dataset.alloc);
+      toast(r.msg);
+      if (r.ok) render();
+    };
+    const respec = document.getElementById("btn-respec-tree");
+    if (respec) respec.onclick = () => {
+      showConfirm({
+        title: "プロトコル再編成",
+        body: `割り当てを起点だけに戻します。予算 ${GAME_DATA.siteTree.respecCost} を消費します。`,
+      }).then((ok) => {
+        if (!ok) return;
+        const r = respecSiteTree(state);
+        toast(r.msg);
+        if (r.ok) {
+          siteInspectNode = GAME_DATA.siteTree.startId;
+          render();
+        }
+      });
+    };
   }
   const btnUpgrade = document.getElementById("btn-upgrade-site");
   if (btnUpgrade) btnUpgrade.onclick = () => {
@@ -4258,8 +4448,8 @@ function doSentrySkill() {
     render();
     return;
   }
-  if (state.sentries.length >= SENTRY_MAX) {
-    toast(`設置上限です（${SENTRY_MAX}基）。MAP上の砲台をクリックして削除してください`);
+  if (state.sentries.length >= sentryMaxOf(state)) {
+    toast(`設置上限です（${sentryMaxOf(state)}基）。MAP上の砲台をクリックして削除してください`);
     return;
   }
   sentryPlaceMode = true;
@@ -4286,8 +4476,8 @@ function onSectorCanvasClick(ev) {
     return;
   }
   if (!sentryPlaceMode) return;
-  if ((state.sentries || []).length >= SENTRY_MAX) {
-    toast(`設置上限です（${SENTRY_MAX}基）`);
+  if ((state.sentries || []).length >= sentryMaxOf(state)) {
+    toast(`設置上限です（${sentryMaxOf(state)}基）`);
     return;
   }
   const room = roomContaining(sectorSim.sector, x, y);
@@ -4311,13 +4501,13 @@ function onSectorCanvasClick(ev) {
     sentryPreview = null;
     if (ok) {
       if (!Array.isArray(state.sentries)) state.sentries = [];
-      if (state.sentries.length >= SENTRY_MAX) {
-        toast(`設置上限です（${SENTRY_MAX}基）`);
+      if (state.sentries.length >= sentryMaxOf(state)) {
+        toast(`設置上限です（${sentryMaxOf(state)}基）`);
       } else {
-        state.sentries.push({ x, y, ammo: SENTRY_AMMO_MAX });
+        state.sentries.push({ x, y, ammo: sentryAmmoMaxOf(state) });
         sentryPlaceMode = false;
         saveGame(state);
-        toast(`セントリーガンを配置（${state.sentries.length}/${SENTRY_MAX}）`);
+        toast(`セントリーガンを配置（${state.sentries.length}/${sentryMaxOf(state)}）`);
       }
     }
     render();
@@ -4338,7 +4528,7 @@ function askRemoveSentry(index) {
     if (ok && state.sentries && index >= 0 && index < state.sentries.length) {
       state.sentries.splice(index, 1);
       saveGame(state);
-      toast(`セントリーガンを削除（${state.sentries.length}/${SENTRY_MAX}）`);
+      toast(`セントリーガンを削除（${state.sentries.length}/${sentryMaxOf(state)}）`);
     }
     render();
   });

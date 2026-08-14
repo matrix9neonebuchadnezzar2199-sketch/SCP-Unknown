@@ -82,6 +82,47 @@ ok("floors", G.floors.length === 50, `len=${G.floors.length}`);
 ok("starters", G.starters.length === 3);
 for (const sid of G.starters) ok(`starter ${sid}`, !!G.catalog[sid]);
 ok("mapSites", Array.isArray(G.mapSites) && G.mapSites.length >= 1);
+const tree = G.siteTree;
+ok("siteTree", tree && Array.isArray(tree.nodes) && tree.nodes.length >= 20);
+const treeIds = new Set();
+for (const n of tree.nodes) {
+  ok(`tree node ${n.id}`, typeof n.id === "string" && n.id.length > 0 && !treeIds.has(n.id));
+  treeIds.add(n.id);
+  ok(`tree xy ${n.id}`, typeof n.x === "number" && typeof n.y === "number");
+}
+ok("tree start", treeIds.has(tree.startId));
+for (const [a, b] of tree.edges) {
+  ok(`tree edge ${a}-${b}`, treeIds.has(a) && treeIds.has(b));
+}
+const sTree = ctx.createNewState();
+ok("tree start alloc", sTree.siteNodes.includes("n_start"));
+eq("unspent lv1", ctx.sitePointsUnspent(sTree), 3);
+ok("keystone locked", ctx.allocateSiteNode(sTree, "n_sk").ok === false);
+ok("alloc s1", ctx.allocateSiteNode(sTree, "n_s1").ok);
+eq("spent 1", ctx.sitePointsSpent(sTree), 1);
+eq("sentry ammo +4", ctx.sitePassives(sTree).sentryAmmo, 4);
+eq("sentry max base", ctx.sentryMaxOf(sTree), 2);
+
+const sGear = ctx.createNewState();
+ok("g1", ctx.allocateSiteNode(sGear, "n_g1").ok);
+ok("g2", ctx.allocateSiteNode(sGear, "n_g2").ok);
+ok("g3", ctx.allocateSiteNode(sGear, "n_g3").ok);
+eq("mat 10off", Math.round(ctx.sitePassives(sGear).enhanceMat * 100), 90);
+const costBase = ctx.gearEnhanceCostRange(0, 20);
+const costOff = ctx.gearEnhanceCostRange(0, 20, sGear);
+ok("enhance mats off", (costOff.mats.p_scrap || 0) < (costBase.mats.p_scrap || 0), `${costOff.mats.p_scrap} vs ${costBase.mats.p_scrap}`);
+
+const sD = ctx.createNewState();
+ok("d1", ctx.allocateSiteNode(sD, "n_d1").ok);
+ctx.storageAdd(sD, "eq_helm", 1);
+const helmSlot = sD.storage.findIndex((x) => x && x.id === "eq_helm");
+const rnd = Math.random;
+Math.random = () => 0;
+const beforeScrap = ctx.storageCount(sD, "p_scrap");
+const dis = ctx.dismantleStorageSlot(sD, helmSlot, 1);
+Math.random = rnd;
+ok("dismantle ok", dis.ok, dis.msg);
+ok("dismantle bonus text", String(dis.msg).includes("選別"), dis.msg);
 const sMap = ctx.createNewState();
 const pick = G.mapSites.find((s) => s.id !== sMap.mapSite) || G.mapSites[0];
 const rMap = ctx.selectMapSite(sMap, pick.id);
@@ -411,12 +452,20 @@ def main() -> int:
     else:
         print("OK  osprey png")
 
+    if "siteTree:" not in (ROOT / "data.js").read_text(encoding="utf-8"):
+        print("FAIL data.js に siteTree が無い")
+        failed += 1
+    else:
+        print("OK  siteTree data")
+
     game = (ROOT / "game.js").read_text(encoding="utf-8")
     for needle, label in (
         ("function sanitizeStateForSave", "sanitizeStateForSave"),
         ("needsWeaponUid", "needsWeaponUid"),
         ('SAVE_KEY = "scp-unknown-save-v1"', "SAVE_KEY"),
         ("seedMaxAttachmentsForVerify", "verify helper kept"),
+        ("function allocateSiteNode", "allocateSiteNode"),
+        ("function sitePassives", "sitePassives"),
     ):
         if needle not in game:
             print(f"FAIL game.js に {label} が無い")
