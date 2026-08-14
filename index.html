@@ -1416,30 +1416,52 @@ let fbLastSyncUid = null;
 let cloudSaveTimer = 0;
 let cloudSaveState = "off"; // off / idle / saved / error
 
+function googleAuthProvider() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  return provider;
+}
+
+function authErrorMsg(e) {
+  const code = e?.code || "";
+  if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") return null;
+  if (code === "auth/popup-blocked") return "ポップアップがブロックされました。ページ遷移で再試行します";
+  if (code === "auth/unauthorized-domain") return "このドメインは未承認です（Firebase の承認済みドメインを確認）";
+  if (code === "auth/operation-not-allowed") return "Google ログインが無効です（コンソールで有効化）";
+  return `ログインに失敗しました（${code || e?.message || "不明"}）`;
+}
+
 function initFirebaseChat() {
   if (typeof firebase === "undefined") return;
   try {
     firebase.initializeApp(FIREBASE_CONFIG);
     fbDb = firebase.database();
-    // セッションを localStorage に永続化（リロードしてもログインを維持）
-    firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
-    let authChecked = false;
-    firebase.auth().onAuthStateChanged((user) => {
-      fbUser = user;
-      fbAuthed = !!user;
-      updateAuthUi();
-      // 最初の発火はセッション復元の完了を意味する。未ログインなら匿名で入る
-      // （復元を待たずに匿名サインインすると Google セッションを上書きしてしまう）
-      if (!authChecked) {
-        authChecked = true;
-        if (!user) firebase.auth().signInAnonymously().catch(() => { fbAuthed = false; });
-      }
-      // Google ログインが新たに有効になったタイミングでセーブを同期
-      if (user && !user.isAnonymous && fbLastSyncUid !== user.uid) {
-        fbLastSyncUid = user.uid;
-        syncCloudSave();
-      }
-    });
+    firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+      .catch(() => {})
+      .then(() => firebase.auth().getRedirectResult())
+      .catch((e) => {
+        if (e?.code === "auth/credential-already-in-use" || e?.code === "auth/email-already-in-use") {
+          return firebase.auth().signInWithCredential(e.credential);
+        }
+        const msg = authErrorMsg(e);
+        if (msg) toast(msg);
+      })
+      .finally(() => {
+        let authChecked = false;
+        firebase.auth().onAuthStateChanged((user) => {
+          fbUser = user;
+          fbAuthed = !!user;
+          updateAuthUi();
+          if (!authChecked) {
+            authChecked = true;
+            if (!user) firebase.auth().signInAnonymously().catch(() => { fbAuthed = false; });
+          }
+          if (user && !user.isAnonymous && fbLastSyncUid !== user.uid) {
+            fbLastSyncUid = user.uid;
+            syncCloudSave();
+          }
+        });
+      });
     fbDb.ref("chat/all").limitToLast(FB_CHAT_LIMIT).on("child_added", (snap) => {
       const m = snap.val();
       if (!m || typeof m.text !== "string") return;
@@ -1481,11 +1503,32 @@ async function handleAuthButton() {
     firebase.auth().signInAnonymously().catch(() => {});
     return;
   }
-  const provider = new firebase.auth.GoogleAuthProvider();
+  const provider = googleAuthProvider();
+  const current = firebase.auth().currentUser;
   try {
-    await firebase.auth().signInWithPopup(provider);
+    if (current && current.isAnonymous) {
+      try {
+        await current.linkWithPopup(provider);
+      } catch (e) {
+        if (e.code === "auth/credential-already-in-use" || e.code === "auth/email-already-in-use") {
+          await firebase.auth().signInWithCredential(e.credential);
+        } else if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment") {
+          await current.linkWithRedirect(provider);
+          return;
+        } else {
+          throw e;
+        }
+      }
+    } else {
+      await firebase.auth().signInWithPopup(provider);
+    }
   } catch (e) {
-    if (e?.code !== "auth/popup-closed-by-user") toast("ログインに失敗しました");
+    if (e?.code === "auth/popup-blocked" || e?.code === "auth/operation-not-supported-in-this-environment") {
+      await firebase.auth().signInWithRedirect(provider);
+      return;
+    }
+    const msg = authErrorMsg(e);
+    if (msg) toast(msg);
   }
 }
 
@@ -1494,18 +1537,18 @@ function pushCloudSave(s) {
   if (!fbDb || !fbUser || fbUser.isAnonymous) return;
   clearTimeout(cloudSaveTimer);
   cloudSaveTimer = setTimeout(() => {
-    try {
-      fbDb.ref(`saves/${fbUser.uid}`).set({
-        data: JSON.stringify(s),
-        ts: Date.now(),
-        version: GAME_DATA.version || "",
-      });
+    fbDb.ref(`saves/${fbUser.uid}`).set({
+      data: JSON.stringify(s),
+      ts: Date.now(),
+      version: GAME_DATA.version || "",
+    }).then(() => {
       cloudSaveState = "saved";
       updateAuthUi();
-    } catch (e) {
+    }).catch((e) => {
       cloudSaveState = "error";
       updateAuthUi();
-    }
+      toast(`クラウド保存に失敗しました（${e.code || e.message}）`);
+    });
   }, 1500);
 }
 window.onGameSaved = (s) => pushCloudSave(s);
@@ -1541,7 +1584,7 @@ async function syncCloudSave() {
       toast("ローカルのセーブをクラウドへアップロードしました");
     }
   } catch (e) {
-    toast("クラウド同期に失敗しました");
+    toast(`クラウド同期に失敗しました（${e.code || e.message}）`);
   }
 }
 
