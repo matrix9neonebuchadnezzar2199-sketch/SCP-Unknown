@@ -2022,7 +2022,7 @@ const FIREBASE_CONFIG = {
 };
 let fbDb = null;
 let fbAuthed = false;
-let fbMessages = [];
+let fbChat = { all: [], question: [] };
 const FB_CHAT_LIMIT = 50;
 let fbUser = null;
 let fbLastSyncUid = null;
@@ -2111,20 +2111,28 @@ function initFirebaseChat() {
           }
         });
       });
-    fbDb.ref("chat/all").limitToLast(FB_CHAT_LIMIT).on("child_added", (snap) => {
-      const m = snap.val();
-      if (!m || typeof m.text !== "string") return;
-      fbMessages.push({
-        user: String(m.user || "Unknown").slice(0, 40),
-        text: m.text.slice(0, 200),
-        ts: typeof m.ts === "number" ? m.ts : Date.now(),
-      });
-      if (fbMessages.length > FB_CHAT_LIMIT) fbMessages = fbMessages.slice(-FB_CHAT_LIMIT);
-      if (chatChannel === "all") renderChat();
-    });
+    attachChatListener("all");
+    attachChatListener("question");
   } catch (e) {
     fbDb = null;
   }
+}
+
+function attachChatListener(channel) {
+  // 全体と同じ RTDB 購読。質問だけ localStorage だと他ブラウザに届かない
+  fbDb.ref(`chat/${channel}`).limitToLast(FB_CHAT_LIMIT).on("child_added", (snap) => {
+    const m = snap.val();
+    if (!m || typeof m.text !== "string") return;
+    const bag = fbChat[channel];
+    if (!bag) return;
+    bag.push({
+      user: String(m.user || "Unknown").slice(0, 40),
+      text: m.text.slice(0, 200),
+      ts: typeof m.ts === "number" ? m.ts : Date.now(),
+    });
+    if (bag.length > FB_CHAT_LIMIT) bag.splice(0, bag.length - FB_CHAT_LIMIT);
+    if (chatChannel === channel) renderChat();
+  });
 }
 
 function updateAuthUi() {
@@ -2276,16 +2284,29 @@ async function syncCloudSave() {
 /** 全体チャンネルの表示用。Firebase の共有ログにローカルの指揮官メッセージを混ぜる */
 function mergedAllChat() {
   const local = (state.chatLog || []).filter((m) => m.channel === "all" && m.user === "指揮官");
-  return [...local, ...fbMessages].sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  return [...local, ...fbChat.all].sort((a, b) => (a.ts || 0) - (b.ts || 0));
 }
 
-function sendFirebaseChat(text) {
+function mergedQuestionChat() {
+  // オンライン時は RTDB を正本。オフライン時だけ端末内ログ
+  if (fbDb && fbAuthed) return fbChat.question.slice().sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  return (state.chatLog || []).filter((m) => m.channel === "question");
+}
+
+function sendFirebaseChat(text, channel = "all") {
   if (!fbDb || !fbAuthed) return false;
+  if (channel !== "all" && channel !== "question") return false;
   const profile = state.profile || {};
-  fbDb.ref("chat/all").push({
+  fbDb.ref(`chat/${channel}`).push({
     user: String(profile.codename || "Researcher").slice(0, 40),
     text: text.slice(0, 200),
     ts: firebase.database.ServerValue.TIMESTAMP,
+  }, (err) => {
+    // ルール未公開だと PERMISSION_DENIED。他端末へ届かないので端末内へ落とす
+    if (err) {
+      sendChat(state, text, channel);
+      renderChat();
+    }
   });
   return true;
 }
@@ -2532,7 +2553,6 @@ function stopPresence() {
 }
 
 function chatNetStatus() {
-  if (chatChannel !== "all") return "ローカル";
   if (!fbDb) return "オフライン";
   if (!fbAuthed) return "認証中…";
   return `オンライン ${fbOnlineCount}人`;
@@ -2541,9 +2561,9 @@ function chatNetStatus() {
 function updateChatFooter() {
   const el = document.getElementById("chat-footer");
   if (!el || !state) return;
-  const n = chatChannel === "all"
-    ? mergedAllChat().length
-    : (state.chatLog || []).filter((m) => m.channel === chatChannel).length;
+  const n = chatChannel === "question"
+    ? mergedQuestionChat().length
+    : mergedAllChat().length;
   const ch = chatChannel === "all" ? "全体" : "質問";
   el.textContent = `通信網 — ${n} 件 / チャンネル: ${ch} / ${chatNetStatus()}`;
 }
@@ -2551,9 +2571,9 @@ function updateChatFooter() {
 function renderChat() {
   const box = document.getElementById("chat-messages");
   if (!box) return;
-  const display = chatChannel === "all"
-    ? mergedAllChat()
-    : (state.chatLog || []).filter((m) => m.channel === chatChannel);
+  const display = chatChannel === "question"
+    ? mergedQuestionChat()
+    : mergedAllChat();
   box.innerHTML = display.map((m) => {
     const whoClass = m.user === "指揮官" ? "cmd" : "";
     const t = new Date(m.ts).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
@@ -4123,7 +4143,7 @@ function renderHelp() {
       <li><strong>拠点強化</strong>のノードをクリックすると右側に詳細が出る。拡張は予算に加え基礎部品と収容品を消費する。</li>
       <li><strong>拠点 → 収容個体生成</strong>でカタログ化・再分類。</li>
       <li><strong>DB → 異能図鑑</strong>でポートレートカードを閲覧。クラス／発見状態／原種・交差種を絞る。</li>
-      <li>左の<strong>チャット</strong>でサイト内通信（ローカル保存）。</li>
+      <li>左の<strong>チャット</strong>でサイト内通信（全体・質問はブラウザ間で共有）。</li>
     </ol>
   </div>`;
 }
@@ -5902,7 +5922,7 @@ function initChat() {
     const input = document.getElementById("chat-input");
     const text = input.value.trim();
     if (!text) return;
-    if (chatChannel === "all" && sendFirebaseChat(text)) {
+    if (sendFirebaseChat(text, chatChannel === "question" ? "question" : "all")) {
       input.value = "";
       return;
     }

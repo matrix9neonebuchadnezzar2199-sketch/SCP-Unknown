@@ -595,8 +595,16 @@ def main() -> int:
     if '"presence"' not in rules or "auth.uid === $uid" not in rules:
         print("FAIL database.rules.json に presence ルールが無い")
         failed += 1
+    elif '"question"' not in rules:
+        print("FAIL database.rules.json に chat/question が無い")
+        failed += 1
     else:
         print("OK  presence rules")
+    if "attachChatListener" not in html or "mergedQuestionChat" not in html:
+        print("FAIL 質問チャンネルの Firebase 共有が無い")
+        failed += 1
+    else:
+        print("OK  question chat shared")
 
     if "id=\"sentry-ammo-col\"" not in html or "function updateSentryAmmoHud" not in html:
         print("FAIL セントリー残弾 HUD が無い")

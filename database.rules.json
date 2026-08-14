@@ -5,6 +5,11 @@
         ".read": true,
         ".write": "auth != null",
         ".indexOn": ["ts"]
+      },
+      "question": {
+        ".read": true,
+        ".write": "auth != null",
+        ".indexOn": ["ts"]
       }
     },
     "saves": {
