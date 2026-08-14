@@ -82,6 +82,10 @@ ok("floors", G.floors.length === 50, `len=${G.floors.length}`);
 ok("starters", G.starters.length === 3);
 for (const sid of G.starters) ok(`starter ${sid}`, !!G.catalog[sid]);
 ok("mapSites", Array.isArray(G.mapSites) && G.mapSites.length >= 1);
+{
+  const fd = ctx.currentFloorData(ctx.createNewState());
+  ok("floor label /50", typeof fd.name === "string" && /-\d+\/50$/.test(fd.name), String(fd.name));
+}
 const tree = G.siteTree;
 ok("siteTree", tree && Array.isArray(tree.nodes) && tree.nodes.length >= 20);
 const treeIds = new Set();
@@ -403,6 +407,21 @@ def main() -> int:
         failed += 1
     else:
         print("OK  equipSkillOnly declared")
+    if "探索進行" in html:
+        print("FAIL 探索進行メーターが残っている")
+        failed += 1
+    else:
+        print("OK  explore progress meter removed")
+    if 'id="h-stamina-fill"' not in html or "dash-status-meters" not in html:
+        print("FAIL 許可証バー統合または安定度/リスクの移動が無い")
+        failed += 1
+    else:
+        print("OK  dash meters relocated")
+    if ".squad-mini .icon, .squad-mini .catalog-art" not in html or "width: 80px; height: 80px" not in html:
+        print("FAIL 展開部隊アイコン枠が 80px になっていない")
+        failed += 1
+    else:
+        print("OK  squad frames 80px")
     if "escapeHtml(m.user)" not in html:
         print("FAIL チャット表示で m.user が escape されていない")
         failed += 1

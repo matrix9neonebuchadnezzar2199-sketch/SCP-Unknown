@@ -2482,7 +2482,7 @@ function currentFloorData(state) {
   return {
     ...base,
     enemies,
-    name: `${site.code}-${String(depth).padStart(2, "0")}`,
+    name: `${site.code}-${depth}/${GAME_DATA.floors.length}`,
   };
 }
 

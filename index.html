@@ -123,6 +123,18 @@ a { color: rgb(var(--color-secondary)); }
   background: rgb(var(--color-background)); border: 1px solid rgb(var(--color-frame));
 }
 .pill strong { color: rgb(var(--color-accent)); }
+.pill-stamina {
+  display: flex; align-items: center; gap: 8px;
+}
+.pill-stamina .pill-bar {
+  width: 88px; height: 6px; border-radius: 4px; overflow: hidden; flex-shrink: 0;
+  background: rgb(var(--color-background)); border: 1px solid rgb(var(--color-frame));
+}
+.pill-stamina .pill-bar > i {
+  display: block; height: 100%; width: 0;
+  background: linear-gradient(90deg, rgb(var(--button-primary-bg)), rgb(var(--button-primary-bg-2)));
+}
+.pill-stamina-timer { font-size: 10px; color: rgb(var(--color-text-muted)); white-space: nowrap; }
 .top-actions { display: flex; gap: 6px; }
 .top-actions button {
   padding: 5px 10px; border-radius: 8px; background: transparent;
@@ -192,20 +204,28 @@ a { color: rgb(var(--color-secondary)); }
   font-size: 10px; letter-spacing: 0.18em; color: rgb(var(--color-text-muted)); margin-bottom: 8px;
 }
 
-/* 展開部隊: 戦力＋部隊列を左、メーターを右に並べて縦を詰める */
-.dash-squad { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; }
-@media (max-width: 820px) { .dash-squad { grid-template-columns: 1fr; } }
-.dash-power { font-size: 1.35rem; font-weight: 700; color: rgb(var(--color-accent)); line-height: 1.1; }
+/* 展開部隊: 戦力の右に部隊アイコン（枠は旧40pxの2倍） */
+.dash-squad { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.dash-power { font-size: 1.35rem; font-weight: 700; color: rgb(var(--color-accent)); line-height: 1.1; flex-shrink: 0; }
 .dash-power small { display: block; font-size: 10px; font-weight: 400; color: rgb(var(--color-text-muted)); letter-spacing: 0.12em; }
-.dash-meters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 4px 18px; }
-
-.squad-strip { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-.squad-mini { width: 46px; text-align: center; font-size: 9px; }
-.squad-mini .icon {
-  width: 40px; height: 40px; border-radius: 8px; margin: 0 auto 3px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 9px; font-weight: 700; border: 1px solid rgb(var(--color-frame));
+.dash-status-meters {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px;
+  width: 100%; margin-top: 8px;
 }
+@media (max-width: 560px) { .dash-status-meters { grid-template-columns: 1fr; } }
+
+.squad-strip { display: flex; gap: 8px; flex-wrap: wrap; }
+.squad-mini { width: 80px; text-align: center; font-size: 9px; }
+.squad-mini .icon, .squad-mini .catalog-art {
+  width: 80px; height: 80px; border-radius: 8px; margin: 0 auto 3px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; border: 1px solid rgb(var(--color-frame));
+  overflow: hidden; background: #080c12; position: relative;
+}
+.squad-mini .icon img, .squad-mini .catalog-art img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.squad-mini .icon.empty { opacity: 0.3; }
 .squad-mini .lv { color: rgb(var(--color-accent)); }
 
 .equip-screen {
@@ -1556,8 +1576,10 @@ select, input[type="text"], input[type="number"] {
       <div><strong id="op-name">---</strong><br><span id="op-title" style="color:rgb(var(--color-text-muted))">---</span></div>
     </div>
     <div class="stat-pills">
-      <span class="pill">許可証 <strong id="h-stamina">0</strong>/<span id="h-stamina-max">0</span></span>
-      <span class="pill" id="h-stamina-timer" style="font-size:10px;color:rgb(var(--color-text-muted))"></span>
+      <span class="pill pill-stamina">許可証 <strong id="h-stamina">0</strong>/<span id="h-stamina-max">0</span>
+        <span class="pill-bar" aria-hidden="true"><i id="h-stamina-fill"></i></span>
+        <span class="pill-stamina-timer" id="h-stamina-timer"></span>
+      </span>
       <span class="pill">予算 <strong id="h-budget">0</strong></span>
       <span class="pill">Site <strong id="h-site">1</strong></span>
       <span class="pill">深度 <strong id="h-floor">1</strong></span>
@@ -2000,6 +2022,11 @@ function updateHeader() {
   applyStaminaRegen(state);
   document.getElementById("h-stamina").textContent = state.stamina;
   document.getElementById("h-stamina-max").textContent = state.staminaMax;
+  const stamFill = document.getElementById("h-stamina-fill");
+  if (stamFill) {
+    const stamMax = state.staminaMax || 1;
+    stamFill.style.width = `${Math.min(100, Math.round((state.stamina / stamMax) * 100))}%`;
+  }
   document.getElementById("h-budget").textContent = state.budget.toLocaleString();
   document.getElementById("h-site").textContent = state.siteLevel;
   document.getElementById("h-floor").textContent = state.floor;
@@ -2421,16 +2448,18 @@ function renderDashboard() {
   const containment = Math.min(100, 40 + state.siteLevel * 12);
 
   const profile = state.profile || { codename: "司令官", title: "収容担当" };
+  const opInitial = escapeHtml((profile.codename || "OP").slice(0, 2));
   const squadMini = [];
-  squadMini.push(`<div class="squad-mini"><div class="icon operator">${escapeHtml((profile.codename || "OP").slice(0, 2))}</div><div class="lv">主人公</div></div>`);
+  squadMini.push(`<div class="squad-mini"><div class="catalog-art">
+    <img src="assets/user/user.jpg" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+    <span class="ph-fallback">${opInitial}</span>
+  </div><div class="lv">主人公</div></div>`);
   for (let i = 0; i < 5; i++) {
     const u = squadUnits[i];
     if (u) {
-      const cat = GAME_DATA.catalog[u.catalogId];
-      const c = classColor(cat.class);
-      squadMini.push(`<div class="squad-mini"><div class="icon" style="background:${c}22;border-color:${c};color:${c}">${cat.name.slice(0, 2)}</div><div class="lv">Lv.${u.level}</div></div>`);
+      squadMini.push(`<div class="squad-mini">${catalogArtHtml(u.catalogId)}<div class="lv">Lv.${u.level}</div></div>`);
     } else {
-      squadMini.push(`<div class="squad-mini"><div class="icon" style="opacity:0.3">—</div><div>空</div></div>`);
+      squadMini.push(`<div class="squad-mini"><div class="icon empty">—</div><div>空</div></div>`);
     }
   }
 
@@ -2498,7 +2527,7 @@ function renderDashboard() {
           ${sectorSim?.boss ? `<div class="sentry-banner">収容違反体が接近中 — 展開チームへ直進する</div>` : ""}
           ${sentryPlaceMode ? `<div class="sentry-banner">解明した室内にセントリーガンを配置してください（${(state.sentries || []).length}/${sentryMaxOf(state)}）</div>` : ""}
           <div class="sector-hud" id="sector-reveal">解明 0/0</div>
-          <div class="sector-hud-meta">SCAN // JP-81 // ${mapSite.code} // DEPTH ${String(floorData.depth).padStart(2, "0")}</div>
+          <div class="sector-hud-meta">SCAN // JP-81 // ${mapSite.code} // DEPTH ${floorData.depth}/${GAME_DATA.floors.length}</div>
         </div>
           <div class="sentry-ammo-col" id="sentry-ammo-col" hidden></div>
         </div>
@@ -2514,6 +2543,10 @@ function renderDashboard() {
             <button type="button" class="btn btn-secondary" id="btn-force-breach" title="許可証 5 枚 / キル報酬なしで制圧率を即MAX" ${state.stamina < 5 || breachReady || state.sectorCleared ? "disabled" : ""}>強行突入（区画制圧率をMAX）</button>
             <button type="button" class="btn btn-secondary" data-goto="squad">編成</button>
             ${boostLeft > 0 ? `<span class="boost-chip">加速中 ${boostLeft}s</span>` : ""}
+          </div>
+          <div class="dash-status-meters">
+            ${meterBar("収容安定度", containment, 100, "teal", "%")}
+            ${meterBar("違反リスク推定", breachRisk, 100, breachRisk > 70 ? "red" : "amber", "%")}
           </div>
         </div>
       </div>
@@ -2541,16 +2574,8 @@ function renderDashboard() {
   <div class="tac-panel">
     <div class="label">展開部隊 STATUS</div>
     <div class="dash-squad">
-      <div>
-        <div class="dash-power">${power.toLocaleString()}<small>総合戦力指数</small></div>
-        <div class="squad-strip">${squadMini.join("")}</div>
-      </div>
-      <div class="dash-meters">
-        ${meterBar("許可証", state.stamina, state.staminaMax, "purple")}
-        ${meterBar("探索進行", state.floor, 50, "purple")}
-        ${meterBar("収容安定度", containment, 100, "teal", "%")}
-        ${meterBar("違反リスク推定", breachRisk, 100, breachRisk > 70 ? "red" : "amber", "%")}
-      </div>
+      <div class="dash-power">${power.toLocaleString()}<small>総合戦力指数</small></div>
+      <div class="squad-strip">${squadMini.join("")}</div>
     </div>
   </div>
 
