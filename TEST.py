@@ -172,6 +172,14 @@ eq("mapSite set", sMap.mapSite, pick.id);
     ok("exclusive filtered S", !(ctx.poolForRarity("S") || []).some((o) => o.id === "art_hourglass"));
 }
 {
+    const all = ctx.craftableList();
+    const gear = new Set(["gear", "attach"]);
+    const item = new Set(["part", "object", "artifact"]);
+    ok("craft kinds known", all.every((m) => gear.has(m.kind) || item.has(m.kind)));
+    ok("gear shop nonempty", all.some((m) => gear.has(m.kind)));
+    ok("item shop nonempty", all.some((m) => item.has(m.kind)));
+}
+{
     const sB = ctx.createNewState();
     const br = ctx.runBattle(sB, ctx.currentFloorData(sB));
     ok("allyCards", Array.isArray(br.allyCards) && br.allyCards.length >= 1);
@@ -500,6 +508,14 @@ def main() -> int:
         failed += 1
     else:
         print("OK  profile dossier")
+    if 'menuBtn("craftGear"' not in html or 'menuBtn("craftItem"' not in html or "収容個体生成" not in html:
+        print("FAIL 拠点の装備制作／アイテム制作／収容個体生成が無い")
+        failed += 1
+    elif 'menuBtn("alchemy"' in html:
+        print("FAIL 戦術に SCP-914（alchemy）メニューが残っている")
+        failed += 1
+    else:
+        print("OK  base craft shops")
     if ".squad-mini .icon, .squad-mini .catalog-art" not in html or "width: 80px; height: 80px" not in html:
         print("FAIL 展開部隊アイコン枠が 80px になっていない")
         failed += 1

@@ -2174,20 +2174,46 @@ const CRAFT_KIND_LABELS = {
   artifact: "アーティファクト",
 };
 
+/** 拠点の制作画面。SCP-914 と同じUIで、出すレシピの種類だけ違う */
+const CRAFT_SHOPS = {
+  craftGear: {
+    title: "装備制作",
+    kinds: ["gear", "attach"],
+    kindTabs: [
+      ["ALL", "すべて"],
+      ["gear", "装備"],
+      ["attach", "アタッチ"],
+    ],
+    blurb: "装備とアタッチメントを製作する。材料は倉庫から消費され、成果物は倉庫へ直接入る。上位レシピは収容品を材料にする。分解収率はクラフトより低いので、作って壊すと損。",
+  },
+  craftItem: {
+    title: "アイテム制作",
+    kinds: ["part", "object", "artifact"],
+    kindTabs: [
+      ["ALL", "すべて"],
+      ["part", "部品"],
+      ["object", "収容"],
+      ["artifact", "アーティファクト"],
+    ],
+    blurb: "部品・収容アイテム・アーティファクトを製作する。材料は倉庫から消費され、成果物は倉庫へ直接入る。上位レシピは収容品を材料にする。分解収率はクラフトより低いので、作って壊すと損。",
+  },
+};
+
 const VIEW_TITLES = {
   dashboard: "司令室",
   map: "MAP選択",
   explore: "区画探索",
   site: "拠点強化",
   equipment: "装備",
+  craftGear: "装備制作",
+  craftItem: "アイテム制作",
   squad: "編成",
   cross: "収容物体合成実験",
   chamber: "自動試験槽",
-  alchemy: "SCP-914 工廠",
   codex: "異能図鑑",
   profile: "プロフィール",
   items: "入手アイテム整理",
-  roster: "収容個体",
+  roster: "収容個体生成",
   help: "ヘルプ",
   board: "掲示板",
   credits: "Credits",
@@ -2237,6 +2263,7 @@ function unitCardHtml(unit, opts = {}) {
 }
 
 function goView(view) {
+  if (view === "alchemy") view = "craftItem";
   currentView = view;
   selectedUnits = [];
   sentryPlaceMode = false;
@@ -2371,10 +2398,11 @@ function render() {
     explore: renderExplore,
     site: renderSite,
     equipment: renderEquipment,
+    craftGear: () => renderCraftShop("craftGear"),
+    craftItem: () => renderCraftShop("craftItem"),
     squad: renderSquad,
     cross: renderCross,
     chamber: renderChamber,
-    alchemy: renderAlchemy,
     codex: renderCodex,
     profile: renderProfile,
     items: renderItems,
@@ -3013,6 +3041,9 @@ function renderDashboard() {
       <div class="menu-btns">
         ${menuBtn("site", "🏗", "拠点強化", `Lv.${state.siteLevel}`)}
         ${menuBtn("equipment", "🛡", "装備", `×${ownedGearCount(state)}`)}
+        ${menuBtn("craftGear", "🛠", "装備制作", `×${craftableCountFor(CRAFT_SHOPS.craftGear.kinds)}`)}
+        ${menuBtn("craftItem", "⚗", "アイテム制作", `×${craftableCountFor(CRAFT_SHOPS.craftItem.kinds)}`)}
+        ${menuBtn("roster", "👾", "収容個体生成", `×${state.units.length}`)}
       </div>
     </div>
     <div class="menu-row">
@@ -3021,7 +3052,6 @@ function renderDashboard() {
         ${menuBtn("squad", "⚔", "編成", `主人公+${squadUnits.length}/5`)}
         ${menuBtn("cross", "🧪", "収容物体合成実験", `Rev.${maxRev}`)}
         ${menuBtn("chamber", "🔬", "試験槽", state.units.length >= GAME_DATA.chamberUnlockCount ? `${state.chamber.length}/${chamberMax}` : "要7体")}
-        ${menuBtn("alchemy", "⚗", "SCP-914", `×${craftableList().length}`)}
         ${menuBtn("", "📋", "作戦立案", "準備中", true)}
         ${menuBtn("", "🛰", "遠征", "準備中", true)}
       </div>
@@ -3032,7 +3062,6 @@ function renderDashboard() {
         ${menuBtn("codex", "📖", "異能図鑑", `${state.discovered.length}/${Object.keys(GAME_DATA.catalog).length}`)}
         ${menuBtn("profile", "👤", "プロフィール", `Lv.${state.profile?.clearance || 1}`)}
         ${menuBtn("items", "📦", "倉庫", `${itemCount}/${state.storageSlots}`)}
-        ${menuBtn("roster", "👾", "収容個体", `×${state.units.length}`)}
       </div>
     </div>
     <div class="menu-row">
@@ -3171,7 +3200,7 @@ function renderEquipment() {
     ).join("");
     const emptyMsg = filtered.length
       ? ""
-      : `<p style="font-size:12px;color:rgb(var(--color-text-muted))">${gearCandidates(state, equipPickSlot).length ? "この条件に合う装備がありません。" : "この枠に入る装備が倉庫にありません。工廠で「装備を作成」してください。"}</p>`;
+      : `<p style="font-size:12px;color:rgb(var(--color-text-muted))">${gearCandidates(state, equipPickSlot).length ? "この条件に合う装備がありません。" : "この枠に入る装備が倉庫にありません。拠点の装備制作で作成してください。"}</p>`;
     const wtTabs = equipPickSlot === "mainWeapon"
       ? `<div class="rarity-tabs">${[["ALL", "すべて"], ["gun", "銃"], ["blade", "刃"]].map(([t, label]) =>
           `<button type="button" class="${equipWeaponTypeTab === t ? "active" : ""}" data-equip-wtab="${t}">${label}</button>`
@@ -3378,7 +3407,8 @@ function renderItems() {
         <h3 style="font-size:0.85rem">保有予算</h3>
         <div id="sort-budget" style="font-size:1.2rem;font-weight:700;color:rgb(var(--color-accent))">${state.budget.toLocaleString()}</div>
         <div class="bulk-row" style="margin-top:10px">
-          <button type="button" class="btn btn-sm btn-secondary" data-goto="alchemy">クラフト</button>
+          <button type="button" class="btn btn-sm btn-secondary" data-goto="craftGear">装備制作</button>
+          <button type="button" class="btn btn-sm btn-secondary" data-goto="craftItem">アイテム制作</button>
         </div>
       </div>
     </div>
@@ -3475,7 +3505,7 @@ function handleDismantleDrop(p) {
   if (isPart(item.id)) {
     showConfirm({
       title: "分解できません",
-      body: "基礎部品を基礎部品には分解できません。ゴミ箱で予算化するか、工廠で上位部品へ精製してください。",
+      body: "基礎部品を基礎部品には分解できません。ゴミ箱で予算化するか、アイテム制作で上位部品へ精製してください。",
       okOnly: true,
     });
     return;
@@ -3734,7 +3764,7 @@ function openAttachOverlay(uid, pickKind0) {
         <div class="rarity-tabs">${rarityTabs}</div>
         <div class="sort-tools">${sorts}</div>
         ${equippedAtt ? `<button type="button" class="btn btn-sm btn-secondary" data-detach>外す（${escapeHtml(itemName(equippedAtt.id))} ${rarityStars(equippedAtt.rarity)}）</button>` : ""}
-        ${rows || `<p style="font-size:12px;color:rgb(var(--color-text-muted))">条件に合うパーツがありません。工廠で製作するかフィルタを緩めてください。</p>`}
+        ${rows || `<p style="font-size:12px;color:rgb(var(--color-text-muted))">条件に合うパーツがありません。装備制作で製作するかフィルタを緩めてください。</p>`}
       </div>`;
     }
     wrap.innerHTML = `<div class="attach-box">
@@ -3886,12 +3916,12 @@ function renderHelp() {
       <li>司令室の MAP で日本支部サイト（生物・非生物など）を選び、展開チーム（1光点）が暗い区画を照らして制圧率を MAX にする。金色ピンは<strong>時限観測点</strong>（異常粒子×1・電源セル×1で10分・1回。時間切れで回収記録を見て前線指揮所へ帰還）。</li>
       <li><strong>BOSS挑戦</strong>で収容違反体が MAP に出現する。接触すると交戦画面が再生され、終了後に入手・EXP・ダメージのリザルトと戦闘ログを表示。勝利で次の区画へ自動進出する。</li>
       <li>収集した部品と収容品は<strong>入手アイテム整理</strong>で倉庫へ入れるか、売却／分解する。上位クラフトと拠点拡張は収容品を残す必要がある。装備強化は予算と基礎部品。</li>
-      <li><strong>工廠</strong>で部品と収容品から装備・アタッチメントを作り、<strong>拠点 → 装備</strong>で主人公に着せる。装備は個体ごとに強化（最大Lv.100、予算＋基礎部品）。メインウエポンのアタッチは個体ごとにレアとステ振れ幅が付く。</li>
+      <li><strong>拠点 → 装備制作 / アイテム制作</strong>で部品と収容品から装備・アタッチ・アイテムを作り、<strong>拠点 → 装備</strong>で主人公に着せる。装備は個体ごとに強化（最大Lv.100、予算＋基礎部品）。メインウエポンのアタッチは個体ごとにレアとステ振れ幅が付く。</li>
       <li><strong>戦術 → 編成</strong>で主人公＋収容個体5体（計6）を揃えてから探索。</li>
       <li><strong>戦術スキル → セントリーガン</strong>で解明済みの室内に砲台を置き、円内の敵へ自動射撃する（最大2、残弾 20、弾切れ 10 秒後に撤去。砲台クリックで削除）。展開チームは進行方向の迎撃錐に入った敵へ連射する。HPが尽きるとステージMAPの前線指揮所からオスプレイが現在地点へ再展開する。</li>
       <li><strong>戦術 → 収容物体合成実験</strong>で収容体を親A／親Bへドラッグして合成。Rev とスキルを継承し、レシピがあれば交差種になる。</li>
       <li><strong>拠点強化</strong>のノードをクリックすると右側に詳細が出る。拡張は予算に加え基礎部品と収容品を消費する。</li>
-      <li><strong>DB → 収容個体</strong>でカタログ化・再分類。</li>
+      <li><strong>拠点 → 収容個体生成</strong>でカタログ化・再分類。</li>
       <li><strong>DB → 異能図鑑</strong>でポートレートカードを閲覧。クラス／発見状態／原種・交差種を絞る。</li>
       <li>左の<strong>チャット</strong>でサイト内通信（ローカル保存）。</li>
     </ol>
@@ -3923,7 +3953,7 @@ function renderRoster() {
     return `<option value="${id}">${c.scp} ${c.name}</option>`;
   }).join("");
   return `<div class="panel">
-    <h2>収容個体 (${state.units.length}体)</h2>
+    <h2>収容個体生成 (${state.units.length}体)</h2>
     <div class="unit-grid">${cards}</div>
     <div class="actions">
       <button type="button" class="btn btn-secondary" onclick="reclassSelected()">再分類</button>
@@ -4339,6 +4369,10 @@ function renderChamber() {
   </div>`;
 }
 
+function craftableCountFor(kinds) {
+  return craftableList().filter((m) => kinds.includes(m.kind)).length;
+}
+
 function craftAffordable(state, meta) {
   const cost = meta.craftCost || 0;
   if (state.budget < cost) return false;
@@ -4346,7 +4380,12 @@ function craftAffordable(state, meta) {
 }
 
 function filteredCraftableList(state) {
+  const shop = CRAFT_SHOPS[currentView];
   let list = craftableList();
+  if (shop) {
+    list = list.filter((m) => shop.kinds.includes(m.kind));
+    if (alchemyKindTab !== "ALL" && !shop.kinds.includes(alchemyKindTab)) alchemyKindTab = "ALL";
+  }
   if (alchemyKindTab !== "ALL") list = list.filter((m) => m.kind === alchemyKindTab);
   if (alchemyRarityTab !== "ALL") list = list.filter((m) => m.rarity === alchemyRarityTab);
   if (alchemyCraftableOnly) list = list.filter((m) => craftAffordable(state, m));
@@ -4490,16 +4529,12 @@ function craftCardHtml(state, meta) {
   </div>`;
 }
 
-function renderAlchemy() {
+function renderCraftShop(shopId) {
+  const shop = CRAFT_SHOPS[shopId];
+  if (!shop) return "";
+  if (alchemyKindTab !== "ALL" && !shop.kinds.includes(alchemyKindTab)) alchemyKindTab = "ALL";
   const list = filteredCraftableList(state);
-  const kindTabs = [
-    ["ALL", "すべて"],
-    ["part", "部品"],
-    ["object", "収容"],
-    ["gear", "装備"],
-    ["attach", "アタッチ"],
-    ["artifact", "アーティファクト"],
-  ].map(([id, label]) =>
+  const kindTabs = shop.kindTabs.map(([id, label]) =>
     `<button type="button" class="${alchemyKindTab === id ? "active" : ""}" data-alchemy-kind="${id}">${label}</button>`
   ).join("");
   const rarityTabs = ["ALL", "SS", "S", "A", "B", "C", "D", "E"].map((t) =>
@@ -4518,9 +4553,9 @@ function renderAlchemy() {
     : `<div class="craft-empty">条件に合うレシピがありません。フィルタを緩めるか、材料を倉庫へ補充してください。</div>`;
 
   return `<div class="panel">
-    <h2>SCP-914 工廠</h2>
+    <h2>${escapeHtml(shop.title)}</h2>
     <p style="font-size:12px;color:rgb(var(--color-text-muted));margin-bottom:10px">
-      材料は倉庫から消費され、成果物は倉庫へ直接入る。上位レシピは収容品を材料にする。分解収率はクラフトより低いので、作って壊すと損。収容品は売却・分解のほか、工廠・拠点拡張・装備強化の三つの出口がある。
+      ${escapeHtml(shop.blurb)}
     </p>
     <div class="craft-toolbar">
       <span class="label">カテゴリ</span>
@@ -4957,7 +4992,7 @@ function bindViewEvents() {
       btn.onclick = () => { codexSort = btn.dataset.codexSort; render(); };
     });
   }
-  if (currentView === "alchemy") {
+  if (CRAFT_SHOPS[currentView]) {
     document.querySelectorAll("[data-alchemy-kind]").forEach((btn) => {
       btn.onclick = () => { alchemyKindTab = btn.dataset.alchemyKind; render(); };
     });

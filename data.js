@@ -3,7 +3,7 @@
  * SCP articles © respective authors on SCP Wiki.
  */
 const GAME_DATA = {
-  version: "0.4.0",
+  version: "0.4.1",
   staminaMaxBase: 30,
   staminaRegenMs: 120000, // 2 min per token
   chamberUnlockCount: 7,
