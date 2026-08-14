@@ -3,7 +3,7 @@
  * SCP articles © respective authors on SCP Wiki.
  */
 const GAME_DATA = {
-  version: "0.3.9",
+  version: "0.4.0",
   staminaMaxBase: 30,
   staminaRegenMs: 120000, // 2 min per token
   chamberUnlockCount: 7,
@@ -637,7 +637,7 @@ const GAME_DATA = {
       scrapTo: { p_resin: 10, p_circuit: 4 }, craft: { p_resin: 16, p_circuit: 6, obj_railspike: 1 }, craftCost: 850 },
     { id: "art_hourglass", name: "収容砂時計", slot: "accessory", gear: "accessory", rarity: "S", stat: { luck: 18, spd: 10 }, sell: 3600,
       exclusive: true,
-      skill: { name: "時限収容", desc: "出現窓のあいだだけ異常の滲み出しを抑える。" },
+      skill: { name: "時限収容", desc: "観測が開いているあいだだけ異常の滲み出しを抑える。" },
       scrapTo: { p_anomalon: 12, p_cell: 5 } },
   ],
 
@@ -910,9 +910,10 @@ const GAME_DATA = {
       desc: "山奥の極めて危険なKeterクラスを取り囲む武装サイト。強力な戦力が常駐。",
       x: 70, y: 73 },
     { id: "s8103", name: "サイト-8103", alias: "時限観測点", code: "8103", kind: "temporal", kindLabel: "時限",
-      desc: "1時間だけ座標が確定する観測点。時結晶と収容砂時計が回収でき、入手率もわずかに高い。",
+      desc: "異常粒子と電源セルで座標を1回確定する。活動限界10分。時結晶と収容砂時計が回収でき、入手率もわずかに高い。",
       x: 84, y: 38,
-      limited: true, limitedOpenMs: 3600000, limitedCycleMs: 21600000,
+      limited: true, limitedRunMs: 600000,
+      unlockCost: { p_anomalon: 1, p_cell: 1 },
       dropBonus: 0.12,
       exclusiveDrops: ["obj_timeshard", "art_hourglass"] },
   ],

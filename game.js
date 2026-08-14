@@ -53,6 +53,8 @@ function createNewState() {
     breachCooldownUntil: 0,
     sentries: [],
     revealedRooms: [],
+    limitedRun: null,
+    ospreyAtHq: false,
     siteNodes: ["n_start"],
     profile: { codename: newGuestCodename(), clearance: 2, title: "収容担当" },
     chatLog: [
@@ -1444,6 +1446,10 @@ function addInventory(state, itemId, qty = 1) {
   const existing = state.pending.find((p) => p.id === itemId);
   if (existing) existing.qty += qty;
   else state.pending.push({ id: itemId, qty });
+  // 時限観測のリザルトは「この挑戦で入った未整理」だけを出す
+  if (isLimitedRunActive(state) && currentMapSite(state)?.limited) {
+    recordLimitedLoot(state, itemId, qty);
+  }
 }
 
 function pendingTotal(state) {
@@ -2286,7 +2292,7 @@ function migrateState(state) {
   if (!GAME_DATA.mapSites.some((s) => s.id === state.mapSite)) {
     state.mapSite = defaultMapSiteId();
   }
-  evictExpiredLimitedSite(state, Date.now(), false);
+  migrateLimitedRun(state);
   ensureOperatorGear(state);
   if (!Array.isArray(state.battleLog)) state.battleLog = [];
   delete state.lastExplore;
@@ -2614,57 +2620,117 @@ function currentMapSite(state) {
   return GAME_DATA.mapSites.find((s) => s.id === id) || GAME_DATA.mapSites[0];
 }
 
-/** 展開地点を切り替える。各地点の区画進行は独立 */
+/** 展開地点を切り替える。各地点の区画進行は独立。時限地点は解放コストを1回消費する */
 function selectMapSite(state, siteId, now = Date.now()) {
   const site = GAME_DATA.mapSites.find((s) => s.id === siteId);
   if (!site) return { ok: false, msg: "未知の地点です" };
-  if (site.limited && mapSiteOpenRemainMs(site, now) <= 0) {
-    return { ok: false, msg: "出現時間が終了しています" };
+  if (isLimitedRunActive(state, null, now) && state.limitedRun.siteId !== site.id) {
+    return { ok: false, msg: "活動限界まで観測点から離脱できません" };
+  }
+  if (site.limited && !isLimitedRunActive(state, site.id, now)) {
+    const cost = limitedUnlockCost(site);
+    const lack = materialsLack(state, cost);
+    if (lack.length) {
+      return { ok: false, msg: `${itemName(lack[0].id)} が不足しています（要 ${lack[0].need}）` };
+    }
+    spendMaterials(state, cost);
+    beginLimitedRun(state, site, now);
   }
   if ((state.mapSite || defaultMapSiteId()) !== site.id) {
     snapshotSiteProgress(state);
     applySiteProgress(state, site.id);
   }
+  state.ospreyAtHq = false;
   saveGame(state);
   return { ok: true, msg: `展開先を ${site.name}（${floorName(state.floor)}）に設定` };
 }
 
-function formatLimitedClock(ms) {
+function limitedUnlockCost(site) {
+  return site?.unlockCost || { p_anomalon: 1, p_cell: 1 };
+}
+
+function limitedRunMsOf(site) {
+  return site?.limitedRunMs || 600000;
+}
+
+/** 活動限界の残り。MM:SS（秒まで） */
+function formatRunClock(ms) {
   const s = Math.max(0, Math.ceil(ms / 1000));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
+  const m = Math.floor(s / 60);
   const sec = s % 60;
-  return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
 }
 
-/** 時限ステージの残り出現時間。非時限は Infinity */
-function mapSiteOpenRemainMs(site, now = Date.now()) {
-  if (!site?.limited) return Infinity;
-  const openMs = site.limitedOpenMs || 3600000;
-  const cycleMs = site.limitedCycleMs || openMs * 6;
-  const t = ((now % cycleMs) + cycleMs) % cycleMs;
-  return t < openMs ? openMs - t : 0;
+function limitedRunRemainMs(state, now = Date.now()) {
+  const run = state?.limitedRun;
+  if (!run || typeof run.until !== "number") return 0;
+  return Math.max(0, run.until - now);
 }
 
-function isMapSiteOpen(site, now = Date.now()) {
-  return mapSiteOpenRemainMs(site, now) > 0;
+function isLimitedRunActive(state, siteId, now = Date.now()) {
+  const run = state?.limitedRun;
+  if (!run || limitedRunRemainMs(state, now) <= 0) return false;
+  if (siteId && run.siteId !== siteId) return false;
+  return true;
+}
+
+function limitedRunNeedsExtract(state, now = Date.now()) {
+  return !!(state?.limitedRun && limitedRunRemainMs(state, now) <= 0);
+}
+
+function isMapSiteOpen(site, state, now = Date.now()) {
+  if (!site?.limited) return true;
+  return isLimitedRunActive(state, site.id, now);
+}
+
+function beginLimitedRun(state, site, now = Date.now()) {
+  state.limitedRun = {
+    siteId: site.id,
+    until: now + limitedRunMsOf(site),
+    loot: [],
+  };
+}
+
+function recordLimitedLoot(state, id, qty = 1) {
+  const run = state.limitedRun;
+  if (!run || limitedRunRemainMs(state) <= 0) return;
+  id = canonicalItemId(id);
+  const row = run.loot.find((x) => x.id === id);
+  if (row) row.qty += qty;
+  else run.loot.push({ id, qty });
+}
+
+/** 時限挑戦を閉じ、既定地点へ戻して前線指揮所表示にする */
+function concludeLimitedRun(state) {
+  const loot = (state.limitedRun?.loot || []).map((x) => ({ id: x.id, qty: x.qty }));
+  if (currentMapSite(state)?.limited) {
+    snapshotSiteProgress(state);
+    applySiteProgress(state, defaultMapSiteId());
+  }
+  state.limitedRun = null;
+  state.ospreyAtHq = true;
+  return loot;
+}
+
+/** 期限切れの時限地点に居たら既定へ。リザルト用の limitedRun は残す */
+function migrateLimitedRun(state, now = Date.now()) {
+  if (!state.limitedRun || typeof state.limitedRun !== "object") {
+    state.limitedRun = null;
+  } else if (!Array.isArray(state.limitedRun.loot)) {
+    state.limitedRun.loot = [];
+  }
+  if (typeof state.ospreyAtHq !== "boolean") state.ospreyAtHq = false;
+  const site = currentMapSite(state);
+  if (site?.limited && !isLimitedRunActive(state, site.id, now)) {
+    snapshotSiteProgress(state);
+    applySiteProgress(state, defaultMapSiteId());
+  }
 }
 
 function rollExclusiveSiteDrop(state) {
   const ids = currentMapSite(state)?.exclusiveDrops;
   if (!ids?.length) return null;
   return ids[Math.floor(Math.random() * ids.length)];
-}
-
-/** 出現窓が閉じた時限地点に居る場合、既定地点へ戻す */
-function evictExpiredLimitedSite(state, now = Date.now(), persist = true) {
-  const site = currentMapSite(state);
-  if (!site?.limited) return false;
-  if (mapSiteOpenRemainMs(site, now) > 0) return false;
-  snapshotSiteProgress(state);
-  applySiteProgress(state, defaultMapSiteId());
-  if (persist) saveGame(state);
-  return true;
 }
 
 /** 次の深度へ進むために必要な撃破数。序盤を軽く、深層をじっくりにする */

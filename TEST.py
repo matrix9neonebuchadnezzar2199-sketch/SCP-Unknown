@@ -139,14 +139,35 @@ eq("mapSite set", sMap.mapSite, pick.id);
 {
     const lim = G.mapSites.find((s) => s.limited);
     ok("limited site", !!lim && lim.id === "s8103", lim && lim.id);
-    ok("limited open ms", lim && lim.limitedOpenMs === 3600000);
-    const remain0 = ctx.mapSiteOpenRemainMs(lim, 0);
-    eq("limited remain at 0", remain0, lim.limitedOpenMs);
-    eq("limited remain closed", ctx.mapSiteOpenRemainMs(lim, lim.limitedOpenMs + 1), 0);
+    eq("limited run ms", lim.limitedRunMs, 600000);
+    eq("unlock anomalon", lim.unlockCost && lim.unlockCost.p_anomalon, 1);
+    eq("unlock cell", lim.unlockCost && lim.unlockCost.p_cell, 1);
     const sLim = ctx.createNewState();
-    ok("limited select open", ctx.selectMapSite(sLim, lim.id, 0).ok);
-    const sClosed = ctx.createNewState();
-    ok("limited select closed", ctx.selectMapSite(sClosed, lim.id, lim.limitedOpenMs + 1).ok === false);
+    ok("limited locked no mats", ctx.selectMapSite(sLim, lim.id).ok === false);
+    ctx.storageAdd(sLim, "p_anomalon", 1);
+    ctx.storageAdd(sLim, "p_cell", 1);
+    ok("limited unlock", ctx.selectMapSite(sLim, lim.id).ok);
+    eq("anomalon spent", ctx.storageCount(sLim, "p_anomalon"), 0);
+    eq("cell spent", ctx.storageCount(sLim, "p_cell"), 0);
+    ok("run active", ctx.isLimitedRunActive(sLim, lim.id));
+    const remain = ctx.limitedRunRemainMs(sLim);
+    ok("remain ~10m", remain > 590000 && remain <= 600000, String(remain));
+    ctx.addInventory(sLim, "p_scrap", 3);
+    const lootRow = (sLim.limitedRun.loot || []).find((x) => x.id === "p_scrap");
+    eq("run loot scrap", lootRow && lootRow.qty, 3);
+    ctx.storageAdd(sLim, "p_anomalon", 1);
+    ctx.storageAdd(sLim, "p_cell", 1);
+    ok("reenter", ctx.selectMapSite(sLim, lim.id).ok);
+    eq("no double spend", ctx.storageCount(sLim, "p_anomalon"), 1);
+    const other = G.mapSites.find((s) => !s.limited);
+    ok("cannot leave", ctx.selectMapSite(sLim, other.id).ok === false);
+    sLim.limitedRun.until = Date.now() - 1;
+    ok("needs extract", ctx.limitedRunNeedsExtract(sLim));
+    const loot = ctx.concludeLimitedRun(sLim);
+    ok("loot returned", Array.isArray(loot) && loot.some((x) => x.id === "p_scrap"));
+    eq("run cleared", sLim.limitedRun, null);
+    eq("osprey hq", sLim.ospreyAtHq, true);
+    eq("left 8103", sLim.mapSite, G.defaultMapSite);
     ok("exclusive filtered A", !(ctx.poolForRarity("A") || []).some((o) => o.id === "obj_timeshard"));
     ok("exclusive filtered S", !(ctx.poolForRarity("S") || []).some((o) => o.id === "art_hourglass"));
 }
@@ -562,11 +583,11 @@ def main() -> int:
         failed += 1
     else:
         print("OK  osprey png")
-    if "出現時間限定" not in html or "data-limited-timer" not in html or "function updateLimitedMapHud" not in html:
-        print("FAIL 時限ステージ（出現時間限定タイマー）が無い")
+    if "sector-run-clock" not in html or "活動限界のため帰還します" not in html or "function beginLimitedRunExtract" not in html:
+        print("FAIL 時限観測（10分カウントダウン／活動限界帰還）が無い")
         failed += 1
     else:
-        print("OK  limited map timer")
+        print("OK  limited run timer")
 
     if "siteTree:" not in (ROOT / "data.js").read_text(encoding="utf-8"):
         print("FAIL data.js に siteTree が無い")
