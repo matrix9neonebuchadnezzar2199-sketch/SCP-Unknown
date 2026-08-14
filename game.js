@@ -667,6 +667,8 @@ function buildOperatorCombatant(state) {
     skills: getOperatorCombatSkills(state),
     buffs: [],
     alive: true,
+    dmgDealt: 0,
+    dmgTaken: 0,
   };
 }
 
@@ -1626,6 +1628,8 @@ function runBattle(state, floorData) {
         skills: getUnitSkills(u),
         buffs: [],
         alive: true,
+        dmgDealt: 0,
+        dmgTaken: 0,
       };
     }),
   ];
@@ -1644,6 +1648,8 @@ function runBattle(state, floorData) {
       skills: getUnitSkills(fakeUnit),
       buffs: [],
       alive: true,
+      dmgDealt: 0,
+      dmgTaken: 0,
       drops: rollEnemyDrops(floorData),
     };
   });
@@ -1752,10 +1758,16 @@ function runBattle(state, floorData) {
         target.hp = 0;
         target.alive = false;
       }
+      const actor = c.side === "ally"
+        ? allies.find((a) => a.id === c.id)
+        : enemies.find((e) => e.id === c.id);
+      if (actor) actor.dmgDealt = (actor.dmgDealt || 0) + dmg;
+      target.dmgTaken = (target.dmgTaken || 0) + dmg;
       events.push({
         type: "hit",
         actorId: c.id,
         targetId: target.id,
+        dmg,
         hp: target.hp,
         maxHp: target.maxHp,
         crit: isCrit,
@@ -1800,6 +1812,9 @@ function runBattle(state, floorData) {
         xp: xpEach,
         levelBefore: before,
         levelAfter: u.level,
+        unitUid: u.uid,
+        xpNow: u.xp || 0,
+        xpNeed: xpForLevel(u.level),
       });
       log.push(`${cat.name} +${xpEach} XP (Lv.${u.level})`);
     }
@@ -1882,9 +1897,30 @@ function runBattle(state, floorData) {
     addInventory(state, item.id);
   }
 
+  const xpByUid = new Map(xpGains.map((g) => [g.unitUid, g]));
+  const allyCards = allies.map((c) => {
+    const u = c.unit;
+    const g = u ? xpByUid.get(u.uid) : null;
+    return {
+      id: c.id,
+      name: c.name,
+      catalogId: c.catalogId || null,
+      isOperator: !!c.isOperator,
+      hp: c.hp,
+      maxHp: c.maxHp,
+      dmgDealt: c.dmgDealt || 0,
+      dmgTaken: c.dmgTaken || 0,
+      xpGain: g?.xp || 0,
+      xpNow: u ? (u.xp || 0) : 0,
+      xpNeed: u ? xpForLevel(u.level) : 0,
+      levelBefore: g?.levelBefore ?? u?.level,
+      levelAfter: g?.levelAfter ?? u?.level,
+    };
+  });
+
   return {
     win, log, loot, events, allies: allySnap, enemies: enemySnap,
-    xpGains, budgetGain, discoveries,
+    xpGains, budgetGain, discoveries, allyCards,
   };
 }
 

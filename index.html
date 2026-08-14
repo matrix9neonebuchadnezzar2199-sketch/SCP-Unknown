@@ -787,6 +787,16 @@ a { color: rgb(var(--color-secondary)); }
   border-radius: var(--radius-card);
   padding: 16px 18px;
 }
+.battle-box.wide { width: min(1120px, calc(100vw - 24px)); }
+.battle-result-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 34%);
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .battle-result-layout { grid-template-columns: 1fr; }
+}
 .battle-box h4 {
   font-family: var(--font-display); font-size: 1.05rem; letter-spacing: 0.1em;
   margin: 0 0 12px; color: rgb(var(--color-danger));
@@ -806,6 +816,9 @@ a { color: rgb(var(--color-secondary)); }
 .bf .bar i { display: block; height: 100%; background: #6b7c4a; width: 100%; }
 .bf.enemy .bar i { background: rgb(var(--color-danger)); }
 .bf-hp { font-size: 10px; font-family: Consolas, monospace; color: rgb(var(--color-text-muted)); }
+.bf-hp.lvup b { color: rgb(var(--color-accent)); }
+.bf .bar.xp i { background: rgb(var(--color-accent)); }
+.bf .bar.xp { margin-top: 4px; }
 .battle-log-live {
   margin-top: 12px; max-height: 140px; overflow-y: auto;
   font-family: Consolas, monospace; font-size: 11px; line-height: 1.55;
@@ -818,9 +831,16 @@ a { color: rgb(var(--color-secondary)); }
 .battle-log-live .heal { color: rgb(var(--color-secondary)); }
 .battle-log-live .end.win { color: rgb(var(--color-secondary)); font-weight: 700; }
 .battle-log-live .end.lose { color: rgb(var(--color-danger)); font-weight: 700; }
+.battle-log-live.result-log {
+  margin-top: 0;
+  max-height: min(56vh, 480px);
+  height: min(56vh, 480px);
+}
 .battle-box h4.win { color: rgb(var(--color-secondary)); }
-.battle-result { margin-top: 4px; }
+.battle-result { margin-top: 0; min-width: 0; }
 .battle-result .label { margin: 10px 0 6px; }
+.battle-result .label:first-child { margin-top: 0; }
+.battle-actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
 .result-loot { display: flex; flex-wrap: wrap; gap: 6px; }
 .result-chip {
   display: inline-flex; align-items: center; gap: 6px;
@@ -837,6 +857,26 @@ a { color: rgb(var(--color-secondary)); }
 }
 .result-xp .catalog-art, .result-disc .catalog-art { width: 40px; height: 40px; margin: 0; }
 .result-xp.lvup .bf-hp b { color: rgb(var(--color-accent)); }
+.result-dmg-list { display: flex; flex-direction: column; gap: 6px; }
+.result-dmg {
+  display: grid; grid-template-columns: 36px 1fr; gap: 8px; align-items: center;
+}
+.result-dmg .catalog-art { width: 36px; height: 36px; margin: 0; }
+.result-dmg-stats {
+  display: flex; flex-wrap: wrap; gap: 10px 14px;
+  font-family: Consolas, monospace; font-size: 11px;
+}
+.result-dmg-stats span {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: rgb(var(--color-text-muted));
+}
+.result-dmg-stats .dealt { color: #e0a84a; }
+.result-dmg-stats .taken { color: rgb(var(--color-danger)); }
+.result-dmg-stats svg {
+  width: 12px; height: 12px; flex-shrink: 0;
+}
+.result-dmg-stats .dealt svg { fill: #e0a84a; }
+.result-dmg-stats .taken svg { fill: rgb(var(--color-danger)); }
 @media (max-width: 640px) { .battle-sides { grid-template-columns: 1fr; } }
 
 .drop-zone {
@@ -3565,7 +3605,7 @@ function renderHelp() {
   return `<div class="panel"><h2>ヘルプ</h2>
     <ol style="font-size:13px;line-height:1.9;padding-left:20px;color:rgb(var(--color-text-muted))">
       <li>司令室の MAP で日本支部サイト（生物・非生物など）を選び、展開チーム（1光点）が暗い区画を照らして制圧率を MAX にする。金色ピンは<strong>出現時間限定</strong>のレアステージ（残り 0 で選択不可）。</li>
-      <li><strong>BOSS挑戦</strong>で収容違反体が MAP に出現する。接触すると交戦画面が再生され、終了後に入手と経験値のリザルトを表示。勝利で次の区画へ自動進出する。</li>
+      <li><strong>BOSS挑戦</strong>で収容違反体が MAP に出現する。接触すると交戦画面が再生され、終了後に入手・EXP・ダメージのリザルトと戦闘ログを表示。勝利で次の区画へ自動進出する。</li>
       <li>収集した部品と収容品は<strong>入手アイテム整理</strong>で倉庫へ入れるか、売却／分解する。上位クラフトと拠点拡張は収容品を残す必要がある。装備強化は予算と基礎部品。</li>
       <li><strong>工廠</strong>で部品と収容品から装備・アタッチメントを作り、<strong>拠点 → 装備</strong>で主人公に着せる。装備は個体ごとに強化（最大Lv.100、予算＋基礎部品）。メインウエポンのアタッチは個体ごとにレアとステ振れ幅が付く。</li>
       <li><strong>戦術 → 編成</strong>で主人公＋収容個体5体（計6）を揃えてから探索。</li>
@@ -4770,10 +4810,14 @@ function doBossChallenge() {
   render();
 }
 
-function battleFighterHtml(f, side) {
-  const art = f.isOperator
+function battleFighterArt(f) {
+  return f.isOperator
     ? `<div class="catalog-art"><img src="assets/user/user.jpg" alt=""></div>`
     : catalogArtHtml(f.catalogId);
+}
+
+function battleFighterHtml(f, side) {
+  const art = battleFighterArt(f);
   return `<div class="bf ${side}" data-fid="${f.id}">
     ${art}
     <div>
@@ -4797,7 +4841,7 @@ function setBattleHp(root, id, hp, maxHp) {
 
 function battleResultHtml(result) {
   const loot = result.loot || [];
-  const xp = result.xpGains || [];
+  const cards = result.allyCards || [];
   const lootHtml = loot.length
     ? loot.map((it) => `<span class="result-chip">
         <img src="assets/item/${it.id}.png" alt="" onerror="this.style.opacity='0.2'">
@@ -4810,29 +4854,56 @@ function battleResultHtml(result) {
   const discHtml = (result.discoveries || []).map((d) =>
     `<div class="result-disc">${catalogArtHtml(d.catalogId)}<span>${escapeHtml(d.name)}</span></div>`
   ).join("");
-  const xpHtml = xp.length
-    ? xp.map((g) => {
-        const up = g.levelAfter > g.levelBefore;
-        const lv = up
-          ? `Lv.${g.levelBefore} → <b>Lv.${g.levelAfter}</b> レベルアップ`
-          : `Lv.${g.levelAfter}`;
-        return `<div class="result-xp${up ? " lvup" : ""}">
-          ${catalogArtHtml(g.catalogId)}
-          <div>
-            <div class="bf-name">${escapeHtml(g.scp)} ${escapeHtml(g.name)}</div>
-            <div class="bf-hp">+${g.xp} XP　${lv}</div>
+  const unitHtml = cards.map((f) => {
+    const hpPct = f.maxHp > 0 ? Math.max(0, Math.round((f.hp / f.maxHp) * 100)) : 0;
+    const up = (f.levelAfter || 0) > (f.levelBefore || 0);
+    const showXp = !f.isOperator && (f.xpNeed || 0) > 0;
+    const xpPct = showXp ? Math.min(100, Math.round((f.xpNow / f.xpNeed) * 100)) : 0;
+    const lv = showXp
+      ? (up ? `Lv.${f.levelBefore} → <b>Lv.${f.levelAfter}</b>` : `Lv.${f.levelAfter}`)
+      : "";
+    const xpLine = showXp
+      ? `<div class="bar xp"><i style="width:${xpPct}%"></i></div>
+         <div class="bf-hp${up ? " lvup" : ""}">EXP ${f.xpNow} / ${f.xpNeed}${f.xpGain ? `　+${f.xpGain}` : ""}　${lv}</div>`
+      : "";
+    return `<div class="bf ally${f.hp <= 0 ? " dead" : ""}">
+      ${battleFighterArt(f)}
+      <div>
+        <div class="bf-name">${escapeHtml(f.name)}</div>
+        <div class="bar"><i style="width:${hpPct}%"></i></div>
+        <div class="bf-hp">${Math.max(0, f.hp)} / ${f.maxHp}</div>
+        ${xpLine}
+      </div>
+    </div>`;
+  }).join("");
+  const dmgHtml = cards.length
+    ? cards.map((f) => `<div class="result-dmg">
+        ${battleFighterArt(f)}
+        <div>
+          <div class="bf-name">${escapeHtml(f.name)}</div>
+          <div class="result-dmg-stats">
+            <span class="dealt" title="与えたダメージ">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.8 1.4 14.6 5.2 6.5 13.3 2.2 14.8 3.7 10.5zM12.2 2.8 13.2 1.8 14.2 2.8 13.2 3.8z"/></svg>
+              与えた ${Number(f.dmgDealt || 0).toLocaleString()}
+            </span>
+            <span class="taken" title="受けたダメージ">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.4 13.6 4v3.4c0 3.4-2.4 5.7-5.6 7.2C4.8 13.1 2.4 10.8 2.4 7.4V4z"/></svg>
+              受けた ${Number(f.dmgTaken || 0).toLocaleString()}
+            </span>
           </div>
-        </div>`;
-      }).join("")
-    : `<span class="result-empty">経験値なし</span>`;
+        </div>
+      </div>`).join("")
+    : `<span class="result-empty">記録なし</span>`;
   const advance = result.win && result.advancedTo
     ? `<p class="result-empty" style="margin-top:8px">${escapeHtml(floorName(result.advancedTo))} へ進出</p>`
     : "";
   return `<div class="label">入手アイテム</div>
     <div class="result-loot">${lootHtml}${budgetHtml}</div>
     ${discHtml ? `<div class="label">新規発見</div>${discHtml}` : ""}
-    <div class="label">経験値</div>
-    ${xpHtml}
+    <div class="label">展開チーム</div>
+    ${unitHtml || `<span class="result-empty">編成なし</span>`}
+    <div class="label">ダメージ</div>
+    <div class="result-dmg-list">${dmgHtml}</div>
     ${advance}`;
 }
 
@@ -4856,18 +4927,23 @@ function playBossBattle(result) {
     const title = result.win ? "収容違反 — 交戦" : "収容違反 — 交戦";
     wrap.innerHTML = `<div class="battle-box">
       <h4>${escapeHtml(title)}</h4>
-      <div class="battle-sides">
-        <div class="battle-col">
-          <div class="label">展開チーム</div>
-          ${(result.allies || []).map((f) => battleFighterHtml(f, "ally")).join("")}
+      <div class="battle-live">
+        <div class="battle-sides">
+          <div class="battle-col">
+            <div class="label">展開チーム</div>
+            ${(result.allies || []).map((f) => battleFighterHtml(f, "ally")).join("")}
+          </div>
+          <div class="battle-col">
+            <div class="label">収容違反体</div>
+            ${(result.enemies || []).map((f) => battleFighterHtml(f, "enemy")).join("")}
+          </div>
         </div>
-        <div class="battle-col">
-          <div class="label">収容違反体</div>
-          ${(result.enemies || []).map((f) => battleFighterHtml(f, "enemy")).join("")}
-        </div>
+        <div class="battle-log-live" id="battle-log-live"></div>
       </div>
-      <div class="battle-log-live" id="battle-log-live"></div>
-      <div class="battle-result" data-result hidden></div>
+      <div class="battle-result-layout" data-result-layout hidden>
+        <div class="battle-result" data-result></div>
+        <div data-result-log></div>
+      </div>
       <div class="battle-actions">
         <button type="button" class="btn btn-sm btn-secondary" data-skip>スキップ</button>
         <button type="button" class="btn btn-sm btn-primary" data-done hidden>了解</button>
@@ -4916,10 +4992,13 @@ function playBossBattle(result) {
         logBox.appendChild(div);
       }
       logBox.scrollTop = logBox.scrollHeight;
-      wrap.querySelector(".battle-sides").hidden = true;
-      logBox.hidden = true;
+      wrap.querySelector(".battle-box").classList.add("wide");
+      wrap.querySelector(".battle-live").hidden = true;
+      const layout = wrap.querySelector("[data-result-layout]");
+      layout.hidden = false;
+      logBox.classList.add("result-log");
+      wrap.querySelector("[data-result-log]").appendChild(logBox);
       const pane = wrap.querySelector("[data-result]");
-      pane.hidden = false;
       pane.innerHTML = battleResultHtml(result);
       const heading = wrap.querySelector("h4");
       heading.textContent = result.win ? "リザルト — 制圧成功" : "リザルト — 撤退";
