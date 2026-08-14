@@ -1,0 +1,4254 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SCP-Unknown- 収容違反ダンジョン</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=BIZ+UDPGothic:wght@400;700&family=Noto+Serif+JP:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: dark;
+  --font-main: "BIZ UDPGothic", "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic UI", Meiryo, system-ui, sans-serif;
+  --font-serif: "Noto Serif JP", "Shippori Mincho", serif;
+  --font-display: "Barlow Condensed", "BIZ UDPGothic", sans-serif;
+  --color-background: 6 8 12;
+  --color-surface: 12 18 28;
+  --color-primary: 62 92 128;
+  --color-secondary: 122 138 88;
+  --color-accent: 196 163 74;
+  --color-text: 220 226 218;
+  --color-text-muted: 138 150 148;
+  --color-frame: 36 52 72;
+  --color-danger: 176 48 40;
+  --button-bg: 10 14 22;
+  --button-bg-hover: 22 32 48;
+  --button-border: 48 68 88;
+  --button-primary-bg: 28 48 72;
+  --button-primary-bg-2: 48 76 108;
+  --button-primary-hover: 62 96 132;
+  --button-accent-bg: 196 163 74;
+  --button-accent-text: 18 16 10;
+  --splash-bg: #05070a;
+  --splash-gold: #c4a34a;
+  --cat-base: #c4a34a;
+  --cat-tactical: #b03028;
+  --cat-database: #7a8a58;
+  --cat-settings: #5a7a98;
+  --radius-card: 4px;
+  --radius-pill: 2px;
+  --chat-w: 300px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font-main);
+  background:
+    radial-gradient(1100px 520px at 50% -8%, rgb(22 32 52 / 0.55), transparent 58%),
+    rgb(var(--color-background));
+  color: rgb(var(--color-text));
+  overflow: hidden;
+}
+.hidden { display: none !important; }
+button { font-family: inherit; cursor: pointer; border: none; }
+a { color: rgb(var(--color-secondary)); }
+
+#splash {
+  position: fixed; inset: 0; z-index: 100; background: var(--splash-bg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
+}
+#splash h1 { font-family: var(--font-display); font-size: 2.2rem; letter-spacing: 0.22em; color: var(--splash-gold); text-transform: uppercase; }
+#splash .spinner {
+  width: 40px; height: 40px; border: 3px solid rgba(196,163,74,0.22);
+  border-top-color: var(--splash-gold); border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#license-screen {
+  position: fixed; inset: 0; z-index: 90; background: rgb(var(--color-background));
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.license-box {
+  max-width: 560px; width: 100%; padding: 28px; border-radius: var(--radius-card);
+  background: rgb(var(--color-surface)); border: 1px solid rgb(var(--color-frame));
+  max-height: 90vh; overflow-y: auto;
+}
+.license-box h2 { font-family: var(--font-serif); margin-bottom: 12px; }
+.license-box p { font-size: 13px; line-height: 1.7; color: rgb(var(--color-text-muted)); margin-bottom: 10px; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 18px; border-radius: var(--radius-pill); font-size: 13px;
+  letter-spacing: 0.04em; transition: background 0.15s, transform 0.1s;
+}
+.btn:active { transform: translateY(1px) scale(0.98); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary {
+  color: #e8ece8;
+  background: linear-gradient(180deg, rgb(var(--button-primary-bg-2)), rgb(var(--button-primary-bg)));
+  border: 1px solid rgb(var(--color-accent) / 0.4);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08);
+}
+.btn-primary:hover:not(:disabled) { background: rgb(var(--button-primary-hover)); }
+.btn-secondary { color: rgb(var(--color-text)); background: rgb(var(--button-bg)); border: 1px solid rgb(var(--button-border)); }
+.btn-secondary:hover:not(:disabled) { background: rgb(var(--button-bg-hover)); }
+.btn-accent { color: rgb(var(--button-accent-text)); background: rgb(var(--button-accent-bg)); font-weight: 700; }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+.btn-lg { padding: 12px 28px; font-size: 15px; font-weight: 700; }
+
+#app { display: flex; flex-direction: column; height: 100vh; }
+
+/* Top bar */
+.top-bar {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 8px 16px; background: #05070a;
+  border-bottom: 1px solid rgb(var(--color-frame)); flex-shrink: 0;
+  box-shadow: inset 0 -2px 0 rgb(var(--color-accent) / 0.38);
+}
+.top-bar .brand { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+.top-bar .brand small { display: block; font-family: var(--font-main); font-size: 0.62rem; color: rgb(var(--color-text-muted)); letter-spacing: 0.12em; }
+.operator-chip {
+  display: flex; align-items: center; gap: 8px; padding: 4px 12px;
+  background: rgb(var(--color-background)); border: 1px solid rgb(var(--color-frame)); border-radius: var(--radius-pill);
+  font-size: 12px;
+}
+.operator-chip .avatar {
+  width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, rgb(var(--color-primary)), rgb(var(--color-secondary)));
+  display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
+}
+.stat-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.pill {
+  padding: 4px 10px; border-radius: var(--radius-pill); font-size: 11px;
+  background: rgb(var(--color-background)); border: 1px solid rgb(var(--color-frame));
+}
+.pill strong { color: rgb(var(--color-accent)); }
+.top-actions { display: flex; gap: 6px; }
+.top-actions button {
+  padding: 5px 10px; border-radius: 8px; background: transparent;
+  color: rgb(var(--color-text-muted)); font-size: 11px; border: 1px solid transparent;
+}
+.top-actions button:hover { color: rgb(var(--color-text)); border-color: rgb(var(--color-frame)); }
+.top-actions button#btn-auth.authed { color: #5dca7a; border-color: #5dca7a55; }
+
+/* Body: chat + main */
+.app-body { display: grid; grid-template-columns: var(--chat-w) 1fr; flex: 1; min-height: 0; }
+
+/* Chat sidebar */
+.chat-sidebar {
+  display: flex; flex-direction: column; background: rgb(var(--color-surface));
+  border-right: 1px solid rgb(var(--color-frame)); min-height: 0;
+}
+.chat-tabs { display: flex; border-bottom: 1px solid rgb(var(--color-frame)); flex-shrink: 0; }
+.chat-tabs button {
+  flex: 1; padding: 8px 4px; background: transparent; color: rgb(var(--color-text-muted));
+  font-size: 11px; border-bottom: 2px solid transparent;
+}
+.chat-tabs button.active { color: rgb(var(--color-text)); border-bottom-color: rgb(var(--color-primary)); }
+.chat-messages {
+  flex: 1; overflow-y: auto; padding: 10px; font-size: 12px; line-height: 1.5;
+}
+.chat-msg { margin-bottom: 8px; }
+.chat-msg .who { font-weight: 700; color: rgb(var(--color-secondary)); margin-right: 6px; }
+.chat-msg .who.system { color: rgb(var(--color-accent)); }
+.chat-msg .who.cmd { color: rgb(var(--color-danger)); }
+.chat-msg .time { font-size: 10px; color: rgb(var(--color-text-muted)); margin-left: 4px; }
+.chat-msg .text { color: rgb(var(--color-text-muted)); word-break: break-word; }
+.chat-input-row {
+  display: flex; gap: 6px; padding: 8px; border-top: 1px solid rgb(var(--color-frame)); flex-shrink: 0;
+}
+.chat-input-row input {
+  flex: 1; background: rgb(var(--color-background)); border: 1px solid rgb(var(--color-frame));
+  color: rgb(var(--color-text)); padding: 8px 10px; border-radius: 8px; font-size: 12px;
+}
+.chat-footer { padding: 6px 10px; font-size: 10px; color: rgb(var(--color-text-muted)); border-top: 1px solid rgb(var(--color-frame)); }
+
+/* Main */
+.main-area { overflow-y: auto; padding: 14px; min-height: 0; }
+.view-header {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+}
+.view-header h1 { font-family: var(--font-display); font-size: 1.35rem; letter-spacing: 0.14em; text-transform: uppercase; }
+.back-btn {
+  padding: 6px 14px; border-radius: var(--radius-pill); background: rgb(var(--button-bg));
+  border: 1px solid rgb(var(--button-border)); color: rgb(var(--color-text-muted)); font-size: 12px;
+}
+.back-btn:hover { color: rgb(var(--color-text)); }
+
+.panel {
+  background: rgb(var(--color-surface)); border: 1px solid rgb(var(--color-frame) / 0.85);
+  border-radius: var(--radius-card); padding: 16px; margin-bottom: 12px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 0 0 1px rgb(var(--color-primary) / 0.14);
+}
+.panel h2 { font-family: var(--font-display); font-size: 1.15rem; margin-bottom: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+.panel h3 { font-size: 0.85rem; color: rgb(var(--color-text-muted)); margin: 12px 0 6px; letter-spacing: 0.08em; }
+
+/* Dashboard */
+.tac-panel {
+  background: rgb(var(--color-surface)); border: 1px solid rgb(var(--color-frame));
+  border-radius: var(--radius-card); padding: 14px; margin-bottom: 10px;
+}
+.tac-panel .label {
+  font-size: 10px; letter-spacing: 0.18em; color: rgb(var(--color-text-muted)); margin-bottom: 8px;
+}
+
+/* 展開部隊: 戦力＋部隊列を左、メーターを右に並べて縦を詰める */
+.dash-squad { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; }
+@media (max-width: 820px) { .dash-squad { grid-template-columns: 1fr; } }
+.dash-power { font-size: 1.35rem; font-weight: 700; color: rgb(var(--color-accent)); line-height: 1.1; }
+.dash-power small { display: block; font-size: 10px; font-weight: 400; color: rgb(var(--color-text-muted)); letter-spacing: 0.12em; }
+.dash-meters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 4px 18px; }
+
+.squad-strip { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.squad-mini { width: 46px; text-align: center; font-size: 9px; }
+.squad-mini .icon {
+  width: 40px; height: 40px; border-radius: 8px; margin: 0 auto 3px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; border: 1px solid rgb(var(--color-frame));
+}
+.squad-mini .lv { color: rgb(var(--color-accent)); }
+
+.equip-screen {
+  display: grid;
+  grid-template-columns: minmax(260px, 40%) 1fr;
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 900px) { .equip-screen { grid-template-columns: 1fr; } }
+.equip-hero {
+  border: 1px solid rgb(var(--color-frame));
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: #080a0e;
+}
+.equip-hero img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 58vh;
+  object-fit: cover;
+  object-position: center top;
+}
+.equip-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid rgb(var(--color-frame));
+  background: rgb(8 12 18);
+}
+.equip-stat {
+  display: grid;
+  grid-template-columns: 3.2em 1fr 4.8em;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+.equip-stat .bar {
+  height: 9px;
+  background: #05070a;
+  border: 1px solid #1c2836;
+  box-shadow: inset 0 0 0 1px #000;
+  overflow: hidden;
+}
+.equip-stat .bar > i {
+  display: block;
+  height: 100%;
+  max-width: 100%;
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.28), transparent 42%),
+    repeating-linear-gradient(90deg, currentColor 0 5px, rgb(0 0 0 / 0.28) 5px 6px);
+  background-color: currentColor;
+}
+.equip-stat.s-hp { color: #5dca7a; }
+.equip-stat.s-atk { color: #d06058; }
+.equip-stat.s-anm { color: #58c4dc; }
+.equip-stat.s-def { color: #7a8a58; }
+.equip-stat.s-spd { color: #c4a34a; }
+.equip-stat.s-luck { color: #c5c9d1; }
+.equip-stat b {
+  color: inherit;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 11px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.equip-skills { padding: 0 12px 12px; font-size: 11px; color: rgb(var(--color-text-muted)); }
+.equip-skills .sk { margin-top: 6px; }
+.equip-skills strong { color: rgb(var(--color-accent)); }
+.equip-right .label { margin-bottom: 8px; }
+.equip-slot-list { display: flex; flex-direction: column; gap: 5px; }
+.equip-slot {
+  display: grid;
+  grid-template-columns: 40px 7.5em minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid rgb(var(--color-frame));
+  background: rgb(var(--color-surface));
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-card);
+}
+.equip-slot:hover { border-color: rgb(var(--color-primary)); }
+.equip-slot.active { border-color: #58c4dc; box-shadow: 0 0 0 1px #58c4dc66; }
+.equip-slot .icon {
+  width: 40px; height: 40px; object-fit: contain;
+  background: #10141c; border: 1px solid rgb(var(--color-frame));
+}
+.equip-slot .icon.empty {
+  display: block;
+  background: rgb(var(--color-background));
+  border-style: dashed;
+}
+.equip-slot .slot-name {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: rgb(var(--color-text-muted));
+}
+.equip-slot .slot-item { font-size: 13px; min-width: 0; }
+.equip-slot .slot-item .stars { color: #ffd93d; font-size: 10px; margin-left: 6px; }
+.equip-slot .slot-item .empty { color: rgb(var(--color-text-muted)); }
+.equip-att-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  max-width: 196px;
+  justify-content: flex-end;
+}
+.equip-att-ic {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgb(var(--color-frame));
+  background: #10141c;
+  border-radius: 3px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: rgb(var(--color-text-muted));
+  font-size: 11px;
+  line-height: 1;
+  position: relative;
+  overflow: hidden;
+}
+.equip-att-ic img { width: 18px; height: 18px; object-fit: contain; pointer-events: none; }
+.equip-att-ic.empty { border-style: dashed; background: rgb(var(--color-background)); }
+.equip-att-ic:hover { border-color: #58c4dc; }
+.equip-pick { margin-top: 12px; }
+.equip-pick h3 { margin-top: 0; }
+.equip-pick-row {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border: 1px solid rgb(var(--color-frame));
+  background: rgb(var(--color-background));
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-card);
+  position: relative;
+  overflow: hidden;
+}
+.equip-pick-row:hover { border-color: #58c4dc; }
+.equip-pick-row img { width: 40px; height: 40px; object-fit: contain; background: #10141c; }
+.equip-pick-row .nm { font-size: 13px; }
+.equip-pick-row .stars { color: #ffd93d; font-size: 11px; margin-left: 6px; }
+.equip-pick-row .st { font-size: 11px; color: rgb(var(--color-text-muted)); margin-top: 2px; }
+.equip-pick-row .st .up { color: #5dca7a; }
+.equip-pick-row .st .down { color: #e05048; }
+.equip-pick-row .sk { font-size: 11px; color: rgb(var(--color-accent)); margin-top: 2px; }
+.equip-pick-row .qty { font-size: 11px; color: rgb(var(--color-text-muted)); }
+
+.equip-slot-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  align-items: stretch;
+}
+.equip-slot-row .equip-slot { cursor: pointer; }
+.equip-slot .lv-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: #c4a34a;
+  font-variant-numeric: tabular-nums;
+}
+.wt-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 5px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  border: 1px solid rgb(var(--color-frame));
+  border-radius: 3px;
+  vertical-align: 1px;
+}
+.wt-gun { color: #58c4dc; border-color: #58c4dc66; }
+.wt-blade { color: #e08a5a; border-color: #e08a5a66; }
+.equip-att-row.att-na {
+  font-size: 10px;
+  color: rgb(var(--color-text-muted));
+  justify-content: flex-end;
+  align-items: center;
+}
+.pick-att-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-top: 4px;
+}
+.pick-att-row .equip-att-ic { width: 18px; height: 18px; }
+.pick-att-row .equip-att-ic img { width: 15px; height: 15px; }
+.equip-slot-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 7.5em;
+}
+.equip-slot-actions .btn { width: 100%; padding: 4px 8px; font-size: 11px; }
+
+.enhance-box { width: min(520px, 100%); position: relative; }
+.enhance-box .advice-close, .attach-box .advice-close {
+  position: absolute; top: 10px; right: 12px;
+}
+.enhance-head {
+  display: flex; gap: 12px; align-items: center; margin-bottom: 12px;
+}
+.enhance-head img {
+  width: 56px; height: 56px; object-fit: contain;
+  background: #10141c; border: 1px solid rgb(var(--color-frame)); border-radius: 6px;
+}
+.enhance-head h4 { margin: 0 0 4px; }
+.enhance-head .sub { font-size: 12px; color: rgb(var(--color-text-muted)); }
+.enhance-stats {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 4px 12px;
+  font-size: 12px; margin: 10px 0 12px;
+}
+.enhance-stats .h { color: rgb(var(--color-text-muted)); font-size: 10px; letter-spacing: 0.08em; }
+.enhance-stats .up { color: #5dca7a; }
+.enhance-slider-row {
+  display: flex; align-items: center; gap: 8px; margin: 8px 0 12px;
+}
+.enhance-slider-row input[type="range"] { flex: 1; accent-color: rgb(var(--color-accent)); }
+
+.attach-box {
+  width: min(860px, 100%);
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-frame));
+  border-radius: var(--radius-card);
+  padding: 16px 18px 18px;
+  position: relative;
+}
+.attach-layout {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.attach-stats-col { font-size: 12px; }
+.attach-stats-col .row {
+  display: flex; justify-content: space-between; gap: 8px;
+  padding: 3px 0; border-bottom: 1px solid rgb(var(--color-frame) / 0.45);
+}
+.attach-stats-col .row .up { color: #5dca7a; }
+.attach-stage {
+  display: grid;
+  grid-template-columns: 148px 1fr 148px;
+  grid-template-areas:
+    "sight gun ammo"
+    "barrel gun magazine"
+    "stock gun grip"
+    "muzzle gun underbarrel";
+  gap: 8px;
+  align-items: center;
+  min-height: 280px;
+}
+.attach-gun {
+  grid-area: gun;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 220px;
+  background: #0c1016;
+  border: 1px solid rgb(var(--color-frame));
+  border-radius: var(--radius-card);
+}
+.attach-gun img { width: min(100%, 280px); height: 160px; object-fit: contain; }
+.attach-pad {
+  display: flex; flex-direction: column; gap: 4px; align-items: stretch;
+  padding: 6px;
+  border: 1px dashed rgb(var(--color-frame));
+  background: rgb(var(--color-background));
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-card);
+  min-height: 58px;
+  position: relative;
+  overflow: hidden;
+}
+.attach-pad:hover, .attach-pad.active { border-color: #58c4dc; border-style: solid; }
+.attach-pad .plus {
+  font-size: 16px; color: rgb(var(--color-text-muted)); line-height: 1;
+}
+.attach-pad .lab { font-size: 10px; letter-spacing: 0.08em; color: rgb(var(--color-text-muted)); }
+.attach-pad .nm { font-size: 11px; }
+.attach-pad img { width: 28px; height: 28px; object-fit: contain; background: #10141c; }
+.attach-pad[data-area="sight"] { grid-area: sight; }
+.attach-pad[data-area="barrel"] { grid-area: barrel; }
+.attach-pad[data-area="stock"] { grid-area: stock; }
+.attach-pad[data-area="muzzle"] { grid-area: muzzle; }
+.attach-pad[data-area="ammo"] { grid-area: ammo; }
+.attach-pad[data-area="magazine"] { grid-area: magazine; }
+.attach-pad[data-area="grip"] { grid-area: grip; }
+.attach-pad[data-area="underbarrel"] { grid-area: underbarrel; }
+.attach-pick {
+  margin-top: 12px;
+  border-top: 1px solid rgb(var(--color-frame));
+  padding-top: 10px;
+}
+.attach-pick h5 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; }
+@media (max-width: 720px) {
+  .attach-layout { grid-template-columns: 1fr; }
+  .attach-stage { grid-template-columns: 1fr 1fr; grid-template-areas:
+    "gun gun"
+    "sight ammo"
+    "barrel magazine"
+    "stock grip"
+    "muzzle underbarrel"; }
+  .attach-gun { min-height: 140px; }
+}
+
+.meter { margin-bottom: 8px; }
+.meter-head { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
+.meter-head span:last-child { color: rgb(var(--color-text-muted)); }
+.meter-bar {
+  height: 7px; background: rgb(var(--color-background)); border-radius: 4px; overflow: hidden;
+  border: 1px solid rgb(var(--color-frame));
+}
+.meter-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.meter-fill.purple { background: linear-gradient(90deg, rgb(var(--button-primary-bg)), rgb(var(--button-primary-bg-2))); }
+.meter-fill.teal { background: linear-gradient(90deg, #4a5c32, rgb(var(--color-secondary))); }
+.meter-fill.amber { background: linear-gradient(90deg, #c47f17, rgb(var(--color-accent))); }
+.meter-fill.red { background: linear-gradient(90deg, #6e1c18, rgb(var(--color-danger))); }
+
+.explore-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.tactics-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  width: 100%;
+}
+.tactics-row .label { margin: 0; }
+
+.breach-row {
+  display: grid; grid-template-columns: 1fr auto; gap: 10px;
+  align-items: stretch; margin-bottom: 10px;
+}
+#btn-boss {
+  min-width: 128px; font-weight: 700; letter-spacing: 0.06em;
+  padding: 8px 16px;
+}
+#btn-boss:disabled {
+  background: rgb(var(--button-bg)); color: rgb(var(--color-text-muted));
+  border: 1px solid rgb(var(--color-frame));
+}
+
+/* 掃討率ゲージ */
+.clear-gauge {
+  margin-bottom: 0; padding: 8px 10px; border-radius: 8px;
+  background: rgb(var(--color-background)); border: 1px solid rgb(var(--color-frame));
+}
+.clear-gauge.breach {
+  border-color: rgb(var(--color-danger));
+  animation: breach-pulse 1.1s ease-in-out infinite;
+}
+@keyframes breach-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(176,48,40,0); }
+  50% { box-shadow: 0 0 14px rgba(176,48,40,0.5); }
+}
+.clear-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 11px; margin-bottom: 5px;
+}
+.clear-gauge.breach .clear-head span:first-child { color: rgb(var(--color-danger)); font-weight: 700; }
+.clear-head span:last-child { font-family: Consolas, monospace; color: rgb(var(--color-text-muted)); }
+/* 入手アイテム整理 */
+.sort-layout {
+  display: grid; grid-template-columns: 1.5fr 1fr 200px; gap: 12px; align-items: start;
+}
+@media (max-width: 1100px) { .sort-layout { grid-template-columns: 1fr; } }
+.sort-col {
+  background: rgb(var(--color-surface)); border: 1px solid rgb(var(--color-frame));
+  border-radius: var(--radius-card); padding: 12px; min-width: 0;
+}
+.sort-col h3 {
+  font-family: var(--font-display); font-size: 1.05rem; margin-bottom: 2px; letter-spacing: 0.08em;
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+}
+.sort-col h3 .cap { font-family: Consolas, monospace; font-size: 11px; color: rgb(var(--color-text-muted)); }
+.sort-col .hint { font-size: 11px; color: rgb(var(--color-text-muted)); margin-bottom: 8px; }
+
+.slot-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  gap: 4px; max-height: 430px; overflow-y: auto; padding-right: 4px;
+}
+.slot {
+  position: relative; aspect-ratio: 1; border-radius: 6px;
+  background: rgb(var(--color-background)); border: 1px solid rgb(var(--color-frame));
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 9px; line-height: 1.15; text-align: center; padding: 3px; overflow: hidden;
+  cursor: grab; user-select: none;
+}
+.slot.empty { cursor: default; opacity: 0.4; }
+.slot .icon {
+  width: 78%; height: 78%; object-fit: contain;
+  pointer-events: none; margin-top: 8px;
+}
+.slot .nm { display: none; }
+.slot .qty {
+  position: absolute; right: 3px; bottom: 2px;
+  font-family: Consolas, monospace; font-size: 10px; font-weight: 700;
+  color: #fff; text-shadow: 0 0 3px #000;
+}
+.slot .grade {
+  position: absolute; left: 1px; right: 1px; top: 1px;
+  font-size: 8px; font-weight: 700; letter-spacing: -1px;
+  line-height: 1; white-space: nowrap; text-align: center;
+  text-shadow: 0 0 3px #000;
+  color: #ffd93d;
+}
+.slot:not(.empty):hover { border-color: rgb(var(--color-primary)); }
+.slot.dragging { opacity: 0.4; }
+
+.slot.r-E { background: rgb(var(--color-background)); }
+.slot.r-D, .equip-pick-row.r-D, .attach-pad.r-D, .equip-att-ic.r-D { background: linear-gradient(180deg, #7a7e86, #3e4248); border-color: #9aa0a8; }
+.slot.r-C, .equip-pick-row.r-C, .attach-pad.r-C, .equip-att-ic.r-C { background: linear-gradient(180deg, #c47a3a, #7a3e14); border-color: #e09a5a; }
+.slot.r-B, .equip-pick-row.r-B, .attach-pad.r-B, .equip-att-ic.r-B { background: linear-gradient(180deg, #d8dce4, #7c828c); border-color: #eef1f6; }
+.slot.r-A, .equip-pick-row.r-A, .attach-pad.r-A, .equip-att-ic.r-A { background: linear-gradient(180deg, #f0d060, #9a7010); border-color: #ffe08a; }
+.slot.r-S, .slot.r-SS, .equip-pick-row.r-S, .equip-pick-row.r-SS, .attach-pad.r-S, .attach-pad.r-SS, .equip-att-ic.r-S, .equip-att-ic.r-SS {
+  background: linear-gradient(120deg, #ff5d7a, #ffd93d, #6bcb77, #4d96ff, #c77dff, #ff5d7a);
+  background-size: 280% 280%; animation: rainbowShift 5s linear infinite;
+  border-color: #fff8;
+}
+.slot.r-SS::after, .equip-pick-row.r-SS::after, .attach-pad.r-SS::after, .equip-att-ic.r-SS::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    radial-gradient(circle at 18% 22%, #fff 0 1.2px, transparent 1.8px),
+    radial-gradient(circle at 72% 30%, #c8f4ff 0 1px, transparent 1.6px),
+    radial-gradient(circle at 40% 78%, #ffe9a8 0 1.1px, transparent 1.7px),
+    radial-gradient(circle at 84% 70%, #fff 0 0.8px, transparent 1.3px);
+  animation: prismSparkle 1.4s steps(4) infinite;
+  mix-blend-mode: screen;
+}
+.equip-pick-row.r-S::before, .equip-pick-row.r-SS::before,
+.attach-pad.r-S::before, .attach-pad.r-SS::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgb(6 8 12 / 0.66), rgb(6 8 12 / 0.4) 55%, rgb(6 8 12 / 0.28));
+}
+.equip-pick-row.r-S > *, .equip-pick-row.r-SS > *,
+.attach-pad.r-S > *, .attach-pad.r-SS > * {
+  position: relative;
+  z-index: 1;
+}
+.equip-pick-row.r-S .nm, .equip-pick-row.r-SS .nm,
+.equip-pick-row.r-S .st, .equip-pick-row.r-SS .st,
+.equip-pick-row.r-S .qty, .equip-pick-row.r-SS .qty,
+.attach-pad.r-S .nm, .attach-pad.r-SS .nm,
+.attach-pad.r-S .lab, .attach-pad.r-SS .lab {
+  color: #f4f7f2;
+  text-shadow: 0 0 3px #000, 0 1px 2px #000, 0 0 10px #000;
+}
+.equip-pick-row.r-S .stars, .equip-pick-row.r-SS .stars {
+  color: #ffe566;
+  text-shadow: 0 0 3px #000, 0 1px 2px #000;
+}
+@keyframes rainbowShift {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+@keyframes prismSparkle {
+  0% { opacity: 0.55; transform: translate(0, 0); }
+  50% { opacity: 1; transform: translate(2px, -1px); }
+  100% { opacity: 0.6; transform: translate(-1px, 2px); }
+}
+
+.parts-row {
+  display: grid; grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 4px; margin-bottom: 10px;
+}
+.parts-row .slot { min-height: 62px; aspect-ratio: auto; height: 68px; }
+
+.cap-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; min-width: 120px; }
+.cap-wrap .cap { font-family: Consolas, monospace; font-size: 11px; color: rgb(var(--color-text-muted)); }
+.cap-bar { width: 120px; height: 6px; border-radius: 4px; background: rgb(var(--color-background));
+  border: 1px solid rgb(var(--color-frame)); overflow: hidden; }
+.cap-fill { height: 100%; border-radius: 3px; }
+.cap-fill.ok { background: #6b7c4a; }
+.cap-fill.warn { background: #c47f17; }
+.cap-fill.hot { background: rgb(var(--color-danger)); }
+
+.rarity-tabs, .sort-tools { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+.rarity-tabs button, .sort-tools button {
+  padding: 3px 8px; font-size: 10px; border-radius: var(--radius-pill);
+  background: rgb(var(--color-background)); border: 1px solid rgb(var(--color-frame));
+  color: rgb(var(--color-text-muted));
+}
+.rarity-tabs button { letter-spacing: -0.5px; color: #ffd93d; }
+.rarity-tabs button[data-rtab="ALL"] { color: rgb(var(--color-text-muted)); }
+.rarity-tabs button.active, .sort-tools button.active {
+  border-color: rgb(var(--color-primary)); background: rgb(var(--button-bg-hover));
+}
+.sort-tools button.active { color: #fff; }
+
+.confirm-overlay {
+  position: fixed; inset: 0; z-index: 80; background: rgba(4, 8, 12, 0.78);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.confirm-overlay.light { background: rgba(4, 8, 12, 0.38); }
+.confirm-box {
+  width: min(420px, 100%); background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-frame)); border-radius: var(--radius-card); padding: 16px 18px;
+}
+.confirm-box h4 { font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 8px; letter-spacing: 0.08em; }
+.confirm-box p { font-size: 12px; line-height: 1.55; color: rgb(var(--color-text-muted)); margin-bottom: 12px; }
+.confirm-box .confirm-body-html { font-size: 12px; line-height: 1.55; color: rgb(var(--color-text-muted)); margin-bottom: 12px; }
+.confirm-box.wide { width: min(480px, 100%); }
+.confirm-craft-out { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+.confirm-craft-out img { width: 44px; height: 44px; object-fit: contain; background: #10141c; border-radius: 6px; border: 1px solid rgb(var(--color-frame)); }
+.confirm-craft-label { font-size: 10px; letter-spacing: 0.1em; margin-bottom: 6px; color: rgb(var(--color-text-muted)); }
+.confirm-craft-mats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.confirm-craft-mat {
+  display: flex; align-items: center; gap: 6px; padding: 4px 8px;
+  border-radius: var(--radius-pill); border: 1px solid rgb(var(--color-frame)); font-size: 11px;
+  background: rgb(var(--color-background));
+}
+.confirm-craft-mat img { width: 24px; height: 24px; object-fit: contain; background: #10141c; border-radius: 4px; }
+.confirm-craft-mat.ok { border-color: rgb(var(--color-secondary) / 0.45); }
+.confirm-craft-mat.lack { border-color: rgb(var(--color-danger) / 0.55); color: rgb(var(--color-danger)); }
+.confirm-craft-mat small { opacity: 0.75; }
+.confirm-craft-cost { font-size: 11px; font-variant-numeric: tabular-nums; }
+.confirm-craft-cost.lack { color: rgb(var(--color-danger)); }
+.craft-qty-row {
+  display: flex; align-items: center; gap: 8px; margin: 10px 0 12px;
+}
+.craft-qty-row .label { font-size: 10px; letter-spacing: 0.1em; color: rgb(var(--color-text-muted)); flex-shrink: 0; }
+.craft-qty-btn {
+  width: 28px; height: 28px; padding: 0; border-radius: var(--radius-pill);
+  border: 1px solid rgb(var(--color-frame)); background: rgb(var(--button-bg));
+  color: rgb(var(--color-text)); font-size: 16px; line-height: 1; flex-shrink: 0;
+}
+.craft-qty-btn:hover:not(:disabled) { background: rgb(var(--button-bg-hover)); }
+.craft-qty-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.craft-qty-slider { flex: 1; min-width: 72px; accent-color: rgb(var(--color-accent)); }
+.craft-qty-num { font-family: Consolas, monospace; font-weight: 700; min-width: 3.2em; text-align: right; color: rgb(var(--color-accent)); }
+.craft-qty-max { font-size: 10px; color: rgb(var(--color-text-muted)); margin-left: auto; }
+.battle-overlay {
+  position: fixed; inset: 0; z-index: 90;
+  background: rgba(4, 8, 12, 0.82);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.battle-box {
+  width: min(720px, 100%);
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-frame));
+  border-radius: var(--radius-card);
+  padding: 16px 18px;
+}
+.battle-box h4 {
+  font-family: var(--font-display); font-size: 1.05rem; letter-spacing: 0.1em;
+  margin: 0 0 12px; color: rgb(var(--color-danger));
+}
+.battle-sides {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+}
+.battle-col .label { margin-bottom: 6px; }
+.bf {
+  display: grid; grid-template-columns: 40px 1fr; gap: 8px; align-items: center;
+  margin-bottom: 8px;
+}
+.bf.dead { opacity: 0.38; }
+.bf .catalog-art { width: 40px; height: 40px; margin: 0; }
+.bf-name { font-size: 11px; font-weight: 700; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bf .bar { height: 6px; background: rgb(var(--color-background)); border: 1px solid rgb(var(--color-frame)); border-radius: 3px; overflow: hidden; }
+.bf .bar i { display: block; height: 100%; background: #6b7c4a; width: 100%; }
+.bf.enemy .bar i { background: rgb(var(--color-danger)); }
+.bf-hp { font-size: 10px; font-family: Consolas, monospace; color: rgb(var(--color-text-muted)); }
+.battle-log-live {
+  margin-top: 12px; max-height: 140px; overflow-y: auto;
+  font-family: Consolas, monospace; font-size: 11px; line-height: 1.55;
+  padding: 8px 10px; border: 1px solid rgb(var(--color-frame));
+  background: rgb(var(--color-background)); border-radius: 8px;
+}
+.battle-log-live .hit { color: rgb(var(--color-text)); }
+.battle-log-live .crit { color: rgb(var(--color-accent)); }
+.battle-log-live .ko { color: rgb(var(--color-danger)); }
+.battle-log-live .heal { color: rgb(var(--color-secondary)); }
+.battle-log-live .end.win { color: rgb(var(--color-secondary)); font-weight: 700; }
+.battle-log-live .end.lose { color: rgb(var(--color-danger)); font-weight: 700; }
+.battle-box h4.win { color: rgb(var(--color-secondary)); }
+.battle-result { margin-top: 4px; }
+.battle-result .label { margin: 10px 0 6px; }
+.result-loot { display: flex; flex-wrap: wrap; gap: 6px; }
+.result-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 8px; border-radius: var(--radius-pill);
+  border: 1px solid rgb(var(--color-frame)); background: rgb(var(--color-background));
+  font-size: 12px;
+}
+.result-chip img { width: 22px; height: 22px; object-fit: contain; background: #10141c; border-radius: 4px; }
+.result-chip.budget { color: rgb(var(--color-accent)); border-color: rgb(var(--color-accent) / 0.45); }
+.result-empty { font-size: 12px; color: rgb(var(--color-text-muted)); }
+.result-xp, .result-disc {
+  display: grid; grid-template-columns: 40px 1fr; gap: 8px; align-items: center;
+  margin-bottom: 8px;
+}
+.result-xp .catalog-art, .result-disc .catalog-art { width: 40px; height: 40px; margin: 0; }
+.result-xp.lvup .bf-hp b { color: rgb(var(--color-accent)); }
+@media (max-width: 640px) { .battle-sides { grid-template-columns: 1fr; } }
+
+.drop-zone {
+  border: 1px dashed rgb(var(--color-frame)); border-radius: var(--radius-card);
+  padding: 14px 10px; text-align: center; margin-bottom: 10px;
+  background: rgb(var(--color-surface)); transition: border-color 0.15s, background 0.15s;
+}
+.drop-zone.over { border-color: rgb(var(--color-primary)); background: rgb(var(--button-bg-hover)); }
+.drop-zone .zone-icon { font-size: 26px; line-height: 1; margin-bottom: 4px; }
+.drop-zone .zone-name { font-size: 12px; font-weight: 700; }
+.drop-zone .zone-desc { font-size: 10px; color: rgb(var(--color-text-muted)); margin-top: 3px; line-height: 1.5; }
+.drop-zone.trash.over { border-color: rgb(var(--color-danger)); }
+.drop-zone.scrap.over { border-color: rgb(var(--color-secondary)); }
+.slot-grid.over, .parts-row.over { outline: 1px dashed rgb(var(--color-primary)); outline-offset: 3px; }
+
+.bulk-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+
+/* 司令室の入手アイテム要約 */
+.loot-panel { cursor: pointer; }
+.loot-panel:hover { border-color: rgb(var(--color-primary)); }
+.loot-summary { display: flex; flex-wrap: wrap; gap: 4px; }
+.loot-chip {
+  font-size: 10px; padding: 3px 7px; border-radius: var(--radius-pill);
+  background: rgb(var(--color-background)); border: 1px solid rgb(var(--color-frame));
+}
+.loot-chip b { font-family: Consolas, monospace; color: rgb(var(--color-accent)); }
+
+.breach-advice {
+  margin-bottom: 10px; padding: 10px 12px; border-radius: 8px;
+  background: rgba(176,48,40,0.1); border: 1px solid rgba(176,48,40,0.55);
+}
+.breach-advice .advice-head {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  color: rgb(var(--color-danger)); margin-bottom: 4px;
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+}
+.advice-close {
+  background: none; border: none; cursor: pointer; padding: 0 2px;
+  font-size: 15px; line-height: 1; color: rgb(var(--color-text-muted));
+}
+.advice-close:hover { color: rgb(var(--color-danger)); }
+.breach-advice p { font-size: 12px; line-height: 1.6; margin-bottom: 8px; }
+.advice-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.boost-chip {
+  align-self: center; font-size: 11px; font-family: Consolas, monospace;
+  color: rgb(var(--color-secondary)); padding: 4px 10px; border-radius: var(--radius-pill);
+  border: 1px solid rgb(var(--color-secondary)); background: rgba(122,138,88,0.12);
+}
+
+/* 区画探索: 左 MAP / 右 ログ列。MAP は設定メニューまで1画面に収まる高さへ縮める */
+.sector-grid { display: grid; grid-template-columns: auto minmax(220px, 260px); gap: 12px; align-items: start; }
+@media (max-width: 1180px) { .sector-grid { grid-template-columns: 1fr; } }
+.sector-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.sector-side .label { margin-bottom: 5px; }
+.sector-side .battle-log { max-height: min(36vh, 270px); }
+
+/* Menu grid（1行コンパクト） */
+.menu-section { margin-bottom: 10px; }
+.menu-row {
+  display: grid; grid-template-columns: 46px 1fr; gap: 0;
+  background: rgb(var(--color-surface)); border: 1px solid rgb(var(--color-frame));
+  border-radius: 10px; overflow: hidden; margin-bottom: 6px;
+}
+.menu-cat {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em; writing-mode: vertical-rl;
+  text-orientation: mixed; padding: 6px 2px;
+}
+.menu-cat.base { background: rgba(196,163,74,0.15); color: var(--cat-base); border-right: 1px solid rgb(var(--color-frame)); }
+.menu-cat.tactical { background: rgba(176,48,40,0.14); color: var(--cat-tactical); border-right: 1px solid rgb(var(--color-frame)); }
+.menu-cat.database { background: rgba(122,138,88,0.14); color: var(--cat-database); border-right: 1px solid rgb(var(--color-frame)); }
+.menu-cat.settings { background: rgba(62,92,128,0.2); color: var(--cat-settings); border-right: 1px solid rgb(var(--color-frame)); }
+.menu-btns {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 5px; padding: 6px;
+}
+.menu-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 7px;
+  background: rgb(var(--color-background)); border: 1px solid rgb(var(--color-frame));
+  color: rgb(var(--color-text)); font-size: 12px; text-align: left; line-height: 1.2;
+  transition: border-color 0.15s, background 0.15s;
+}
+.menu-btn:hover { border-color: rgb(var(--color-primary)); background: rgb(var(--button-bg-hover)); }
+.menu-btn.disabled { opacity: 0.45; cursor: not-allowed; }
+.menu-btn .icon { font-size: 14px; line-height: 1; flex-shrink: 0; }
+.menu-btn .label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.menu-btn .sub {
+  font-size: 10px; color: rgb(var(--color-accent)); flex-shrink: 0;
+  font-family: Consolas, monospace;
+}
+
+/* Unit cards etc */
+.unit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.unit-card {
+  padding: 12px; border-radius: 10px; background: rgb(var(--color-background));
+  border: 1px solid rgb(var(--color-frame)); cursor: pointer; transition: border-color 0.15s;
+}
+.unit-card:hover { border-color: rgb(var(--color-primary)); }
+.unit-card.selected { border-color: rgb(var(--color-accent)); box-shadow: 0 0 0 1px rgb(var(--color-accent) / 0.4); }
+.unit-card .badge {
+  display: inline-block; padding: 2px 8px; border-radius: var(--radius-pill);
+  font-size: 10px; font-weight: 700; margin-bottom: 4px;
+}
+.unit-card .name { font-weight: 700; font-size: 14px; }
+.unit-card .meta { font-size: 11px; color: rgb(var(--color-text-muted)); margin-top: 4px; }
+.unit-card .stats { font-size: 11px; margin-top: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+.placeholder-img, .catalog-art {
+  width: 48px; height: 48px; border-radius: 8px;
+  margin: 0 auto 6px;
+  overflow: hidden; background: #080c12; border: 1px solid rgb(var(--color-frame));
+  position: relative;
+}
+.catalog-art img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.catalog-art .ph-fallback {
+  display: none; position: absolute; inset: 0;
+  align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700;
+}
+
+.codex-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px;
+}
+.codex-card {
+  position: relative;
+  display: flex; flex-direction: column;
+  border: 1px solid rgb(var(--color-frame)); background: rgb(var(--color-background));
+  border-radius: var(--radius-card); overflow: hidden;
+}
+.codex-card.locked { opacity: 1; }
+.codex-card .stamp {
+  position: absolute; top: 8px; right: 8px; z-index: 1;
+  padding: 2px 7px; font-size: 9px; letter-spacing: 0.08em;
+  border-radius: var(--radius-pill); background: rgba(8,12,18,0.82);
+  border: 1px solid rgb(var(--color-frame)); color: rgb(var(--color-text-muted));
+}
+.codex-card .stamp.ok { color: rgb(var(--color-accent)); border-color: rgb(var(--color-accent) / 0.5); }
+.codex-card .catalog-art {
+  width: 100%; height: 168px; margin: 0; border: 0; border-radius: 0;
+}
+.codex-card .body { padding: 10px 12px 12px; }
+.codex-card .badge {
+  display: inline-block; padding: 2px 8px; border-radius: var(--radius-pill);
+  font-size: 10px; font-weight: 700; margin-bottom: 4px;
+}
+.codex-card .scp { font-size: 11px; letter-spacing: 0.04em; color: rgb(var(--color-text-muted)); }
+.codex-card .nm { font-size: 14px; font-weight: 700; margin: 2px 0 4px; }
+.codex-card .meta { font-size: 11px; color: rgb(var(--color-text-muted)); }
+.codex-card .look { font-size: 11px; line-height: 1.55; color: rgb(var(--color-text-muted)); margin-top: 6px; }
+.codex-card .sk { font-size: 10px; margin-top: 6px; color: rgb(var(--color-accent)); line-height: 1.45; }
+.codex-card .own { font-size: 10px; color: rgb(var(--color-text-muted)); margin-top: 4px; }
+.squad-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.squad-slot {
+  width: 100px; min-height: 80px; border: 2px dashed rgb(var(--color-frame));
+  border-radius: 10px; padding: 8px; font-size: 11px; text-align: center; cursor: pointer;
+}
+.squad-slot.filled { border-style: solid; border-color: rgb(var(--color-primary)); background: rgb(var(--color-background)); }
+
+.squad-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.squad-cell {
+  border: 1px dashed rgb(var(--color-frame)); border-radius: var(--radius-card);
+  padding: 8px; background: rgb(var(--color-surface)); min-height: 168px;
+}
+.squad-cell.filled { border-style: solid; border-color: rgb(var(--color-primary)); cursor: pointer; }
+.squad-cell .slot-idx {
+  font-size: 10px; letter-spacing: 0.14em; color: rgb(var(--color-text-muted)); margin-bottom: 6px;
+  font-family: var(--font-display);
+}
+.squad-cell.operator-slot {
+  border-style: solid; border-color: rgb(var(--color-accent));
+  background: rgb(var(--color-accent) / 0.06); cursor: pointer;
+}
+.squad-cell.operator-slot .op-avatar {
+  width: 40px; height: 40px; border-radius: 50%; margin: 0 auto 6px;
+  background: linear-gradient(135deg, rgb(var(--color-primary)), rgb(var(--color-accent) / 0.5));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: #f0e2b0;
+  border: 1px solid rgb(var(--color-accent) / 0.6);
+}
+.squad-mini .icon.operator {
+  background: rgb(var(--color-accent) / 0.2) !important;
+  border-color: rgb(var(--color-accent)) !important;
+  color: #c4a34a !important;
+}
+.squad-summary { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 10px; font-size: 12px; }
+.squad-summary .warn { color: rgb(var(--color-danger)); }
+.class-pill {
+  display: inline-block; padding: 2px 8px; border-radius: var(--radius-pill); font-size: 10px; font-weight: 700;
+  border: 1px solid rgb(var(--color-frame));
+}
+
+.site-tree-layout {
+  display: grid; grid-template-columns: minmax(220px, 1fr) minmax(280px, 1.15fr);
+  gap: 18px; align-items: start;
+}
+@media (max-width: 720px) { .site-tree-layout { grid-template-columns: 1fr; } }
+.site-tree {
+  display: flex; flex-direction: column; align-items: stretch;
+  padding: 8px 4px 4px;
+}
+.site-node {
+  display: grid; grid-template-columns: 52px 1fr; gap: 12px; align-items: center;
+  width: 100%; padding: 4px 6px; border: 1px solid transparent; border-radius: var(--radius-card);
+  background: transparent; color: inherit; text-align: left;
+}
+.site-node:hover { background: rgb(var(--button-bg-hover) / 0.55); }
+.site-node.selected { border-color: rgb(var(--color-accent) / 0.55); background: rgb(var(--color-accent) / 0.08); }
+.site-node.locked { opacity: 0.42; }
+.site-node.done { opacity: 0.82; }
+.site-node-gem {
+  position: relative; width: 46px; height: 52px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; letter-spacing: 0.04em;
+  color: rgb(var(--color-text-muted)); flex-shrink: 0;
+}
+.site-node-gem::before, .site-node-gem::after {
+  content: ""; position: absolute; inset: 0;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+}
+.site-node-gem::before { background: rgb(var(--color-frame)); }
+.site-node-gem::after { inset: 2px; background: #0c121c; }
+.site-node-gem b { position: relative; z-index: 1; }
+.site-node.done .site-node-gem { color: rgb(var(--color-accent)); }
+.site-node.done .site-node-gem::before { background: rgb(var(--color-accent)); }
+.site-node.done .site-node-gem::after { background: rgb(28 24 12); }
+.site-node.current .site-node-gem { color: #f0e2b0; }
+.site-node.current .site-node-gem::before {
+  background: rgb(var(--color-accent));
+  animation: site-gem-pulse 1.8s ease-in-out infinite;
+}
+.site-node.current .site-node-gem::after { background: rgb(36 30 12); }
+.site-node.next .site-node-gem { color: rgb(var(--color-accent)); }
+.site-node.next .site-node-gem::before { background: rgb(var(--color-accent) / 0.7); }
+.site-node.selected .site-node-gem { transform: scale(1.06); }
+@keyframes site-gem-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.35); }
+}
+.site-node-name { display: block; font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+.site-node.selected .site-node-name { color: rgb(var(--color-accent)); }
+.site-node-tag { font-size: 10px; color: rgb(var(--color-text-muted)); letter-spacing: 0.06em; }
+.site-link {
+  width: 2px; height: 18px; margin: 0 0 0 28px;
+  background: rgb(var(--color-frame));
+}
+.site-link.on { background: rgb(var(--color-accent) / 0.75); }
+.site-hover {
+  position: relative;
+  padding: 16px 18px 16px 20px;
+  background: rgb(8 12 20 / 0.96);
+  border: 1px solid rgb(var(--color-accent) / 0.45);
+  border-radius: var(--radius-card);
+  box-shadow: 0 12px 36px rgb(0 0 0 / 0.45);
+}
+.site-hover::before {
+  content: ""; position: absolute; left: -6px; top: 26px;
+  width: 11px; height: 11px;
+  background: rgb(8 12 20 / 0.96);
+  border-left: 1px solid rgb(var(--color-accent) / 0.45);
+  border-bottom: 1px solid rgb(var(--color-accent) / 0.45);
+  transform: rotate(45deg);
+}
+@media (max-width: 720px) { .site-hover::before { display: none; } }
+.site-hover .kicker {
+  font-size: 10px; letter-spacing: 0.16em; color: rgb(var(--color-accent));
+  margin-bottom: 6px; text-transform: uppercase;
+}
+.site-hover h2 {
+  margin-bottom: 6px; text-transform: none; font-family: var(--font-main);
+  font-size: 1.05rem; letter-spacing: 0.04em;
+}
+.site-hover .desc { font-size: 12px; line-height: 1.7; color: rgb(var(--color-text-muted)); margin-bottom: 12px; }
+.site-hover-stats { display: grid; gap: 6px; margin-bottom: 12px; font-size: 12px; }
+.site-hover-stats div {
+  display: grid; grid-template-columns: 7.5em 1fr; gap: 8px;
+  padding: 4px 0; border-bottom: 1px solid rgb(var(--color-frame) / 0.6);
+}
+.site-hover-stats dt { color: rgb(var(--color-text-muted)); }
+.site-hover-stats dd { font-variant-numeric: tabular-nums; }
+.site-hover .cost { font-size: 12px; margin: 0 0 12px; color: rgb(var(--color-text-muted)); }
+.site-delta { font-size: 12px; margin: 8px 0 12px; line-height: 1.7; }
+.site-delta .up, .site-hover .up { color: #5dca7a; }
+
+.craft-toolbar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 12px; }
+.craft-toolbar .label { font-size: 10px; letter-spacing: 0.12em; color: rgb(var(--color-text-muted)); margin-right: 4px; }
+.craft-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+.craft-card {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 12px; border-radius: var(--radius-card);
+  border: 1px solid rgb(var(--color-frame)); background: rgb(var(--color-background));
+}
+.craft-card.affordable { border-color: rgb(var(--color-accent) / 0.55); }
+.craft-card.locked { opacity: 0.72; }
+.craft-out {
+  display: grid; grid-template-columns: 52px 1fr; gap: 10px; align-items: start;
+}
+.craft-out img {
+  width: 48px; height: 48px; object-fit: contain;
+  background: #10141c; border-radius: 6px; border: 1px solid rgb(var(--color-frame));
+}
+.craft-out .nm { font-size: 13px; font-weight: 700; line-height: 1.35; }
+.craft-out .stars { color: #ffd93d; font-size: 11px; margin-left: 4px; }
+.craft-kind {
+  display: inline-block; margin-top: 4px; padding: 1px 7px;
+  font-size: 9px; letter-spacing: 0.08em; border-radius: var(--radius-pill);
+  border: 1px solid rgb(var(--color-frame)); color: rgb(var(--color-text-muted));
+}
+.craft-stock { font-size: 10px; color: rgb(var(--color-text-muted)); margin-top: 4px; }
+.craft-mats { display: flex; flex-wrap: wrap; gap: 6px; }
+.craft-mat {
+  display: flex; align-items: center; gap: 5px; padding: 4px 7px;
+  font-size: 10px; border-radius: var(--radius-pill);
+  border: 1px solid rgb(var(--color-frame)); background: rgb(var(--color-surface));
+}
+.craft-mat img { width: 22px; height: 22px; object-fit: contain; background: #10141c; border-radius: 4px; }
+.craft-mat.ok { border-color: rgb(var(--color-secondary) / 0.45); }
+.craft-mat.lack { border-color: rgb(var(--color-danger) / 0.55); color: rgb(var(--color-danger)); }
+.craft-mat small { opacity: 0.75; }
+.craft-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-top: auto; padding-top: 4px; border-top: 1px solid rgb(var(--color-frame) / 0.6);
+}
+.craft-foot .cost { font-size: 11px; color: rgb(var(--color-text-muted)); font-variant-numeric: tabular-nums; }
+.craft-foot .cost.lack { color: rgb(var(--color-danger)); }
+.craft-empty { font-size: 12px; color: rgb(var(--color-text-muted)); padding: 16px 4px; }
+
+.fusion-row {
+  display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 8px;
+  align-items: stretch; margin: 10px 0;
+}
+@media (max-width: 820px) { .fusion-row { grid-template-columns: 1fr; } .fusion-op { display: none; } }
+.fusion-box {
+  border: 1px dashed rgb(var(--color-frame)); border-radius: var(--radius-card);
+  padding: 8px; min-height: 150px; background: rgb(var(--color-background));
+}
+.fusion-box.over { border-color: rgb(var(--color-primary)); background: rgb(var(--button-bg-hover)); }
+.fusion-box .lab { font-size: 10px; letter-spacing: 0.14em; color: rgb(var(--color-text-muted)); margin-bottom: 6px; }
+.fusion-op { display: flex; align-items: center; justify-content: center; color: rgb(var(--color-accent)); font-size: 1.3rem; }
+#cross-pick .unit-card[draggable="true"], .fusion-box .unit-card[draggable="true"] { cursor: grab; }
+#cross-pick .unit-card.dragging, .fusion-box .unit-card.dragging { opacity: 0.45; }
+.recipe-ok { color: #5dca7a; }
+.xp-bar { height: 5px; background: rgb(var(--color-background)); border: 1px solid rgb(var(--color-frame)); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.xp-fill { height: 100%; background: rgb(var(--color-secondary)); }
+
+.hint-warn { color: rgb(var(--color-danger)); font-size: 12px; margin: 6px 0; }
+.battle-log {
+  font-family: Consolas, "Courier New", monospace; font-size: 12px; line-height: 1.6;
+  max-height: 400px; overflow-y: auto; padding: 12px;
+  background: rgb(var(--color-background)); border-radius: 8px; border: 1px solid rgb(var(--color-frame));
+}
+.battle-log .win { color: rgb(var(--color-secondary)); }
+.battle-log .lose { color: rgb(var(--color-danger)); }
+.battle-log .contact { color: rgb(var(--color-accent)); }
+
+/* Sector scan map */
+.sector-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+.sector-legend { margin-left: auto; display: flex; gap: 12px; font-size: 11px; color: rgb(var(--color-text-muted)); }
+.sector-legend i.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+.sector-legend i.dot.blue { background: #5a96c8; box-shadow: 0 0 6px #5a96c8; }
+.sector-legend i.dot.red { background: rgb(var(--color-danger)); box-shadow: 0 0 6px rgb(var(--color-danger)); }
+.sector-wrap {
+  position: relative; border-radius: var(--radius-card); overflow: hidden;
+  border: 1px solid rgb(var(--color-frame)); background: #07090c;
+  width: min(100%, calc(min(36vh, 330px) * 920 / 430));
+}
+.sector-wrap canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 920 / 430;
+}
+.sector-hud {
+  position: absolute; left: 10px; bottom: 8px;
+  font-family: Consolas, monospace; font-size: 10px; letter-spacing: 0.14em;
+  color: rgba(196, 163, 74, 0.85); pointer-events: none;
+}
+.sector-hud-meta {
+  position: absolute; right: 10px; bottom: 8px;
+  font-family: Consolas, monospace; font-size: 10px; letter-spacing: 0.14em;
+  color: rgba(196, 163, 74, 0.55); pointer-events: none;
+}
+.sentry-banner {
+  position: absolute; top: 8px; left: 8px; right: 8px; z-index: 2;
+  pointer-events: none;
+  padding: 6px 10px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: #c4a34a;
+  background: rgb(8 10 14 / 0.82);
+  border: 1px solid rgb(var(--color-accent) / 0.45);
+}
+#sector-canvas.place-sentry { cursor: crosshair; }
+.btn-sentry { gap: 6px; }
+.btn-sentry svg { width: 14px; height: 14px; fill: currentColor; flex-shrink: 0; }
+.btn-sentry .sentry-count { font-size: 10px; color: rgb(var(--color-text-muted)); }
+.btn-sentry.placing { border-color: rgb(var(--color-accent)); color: rgb(var(--color-accent)); }
+.sector-legend i.dot.gold { background: #c4a34a; box-shadow: 0 0 6px #c4a34a; }
+.sector-legend i.dot.op {
+  background: #c4a34a; box-shadow: 0 0 6px #c4a34a;
+  border: 2px solid #5a96c8;
+}
+.sector-legend i.dot.sentry {
+  background: transparent; box-shadow: none;
+  border: 2px dashed #c4a34a;
+}
+
+/* TOKYO 地点選択マップ（NVG 画像に合わせた緑のウェイポイント） */
+.btn-map-select {
+  align-self: center;
+  letter-spacing: 0.14em;
+  min-width: 92px;
+  font-family: var(--font-display);
+  font-size: 13px;
+}
+.city-map-panel { padding: 10px; }
+.city-map-note {
+  font-family: Consolas, monospace; font-size: 11px; letter-spacing: 0.12em;
+  color: #7cff6b; margin-bottom: 8px;
+}
+.city-map {
+  position: relative; width: 100%;
+  border: 1px solid rgba(124, 255, 107, 0.35);
+  background: #000;
+}
+.city-map img { display: block; width: 100%; height: auto; pointer-events: none; }
+.map-poi {
+  position: absolute; transform: translate(-50%, -110%);
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: transparent; border: none; padding: 0; cursor: pointer; z-index: 2;
+}
+.map-poi .pin {
+  width: 10px; height: 10px; border: 2px solid #7cff6b;
+  background: rgba(0, 8, 4, 0.85); transform: rotate(45deg);
+  box-shadow: 0 0 8px #7cff6b;
+}
+.map-poi .tag {
+  font-family: var(--font-display); font-size: 12px; letter-spacing: 0.08em;
+  color: #7cff6b; background: rgba(0, 8, 4, 0.84);
+  border: 1px solid #7cff6b; padding: 3px 8px 4px; white-space: nowrap;
+  display: flex; flex-direction: column; align-items: center; line-height: 1.15; gap: 1px;
+}
+.map-poi .tag small {
+  font-family: Consolas, monospace; font-size: 10px; letter-spacing: 0.04em; opacity: 0.9;
+}
+.map-poi:hover .tag, .map-poi:hover .pin { filter: brightness(1.25); }
+.map-poi.active .tag {
+  color: #05070a; background: #c4a34a; border-color: #c4a34a;
+}
+.map-poi.active .pin {
+  border-color: #c4a34a; background: #c4a34a; box-shadow: 0 0 8px #c4a34a;
+}
+.map-site-blurb {
+  margin-top: 10px; padding: 10px 12px;
+  border: 1px solid rgb(var(--color-frame)); background: rgb(var(--color-background));
+}
+.map-site-blurb strong { font-size: 13px; margin-right: 8px; }
+.map-site-blurb .kind {
+  display: inline-block; padding: 1px 7px; font-size: 10px; letter-spacing: 0.08em;
+  border: 1px solid rgb(var(--color-accent) / 0.45); color: rgb(var(--color-accent));
+  border-radius: var(--radius-pill);
+}
+.map-site-blurb p { font-size: 12px; color: rgb(var(--color-text-muted)); margin-top: 6px; line-height: 1.55; }
+
+.rarity-hud {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px;
+  margin-bottom: 10px; padding: 6px 8px;
+  background: rgb(var(--color-background)); border: 1px solid rgb(var(--color-frame));
+}
+.rarity-hud-label {
+  font-size: 10px; letter-spacing: 0.16em; color: rgb(var(--color-accent));
+  font-family: var(--font-display); margin-right: 4px;
+}
+.rarity-chip {
+  font-family: Consolas, monospace; font-size: 10px;
+  color: rgb(var(--color-text-muted)); padding: 1px 6px;
+  border: 1px solid rgb(var(--color-frame));
+}
+.rarity-chip b { color: #ffd93d; margin-right: 3px; }
+.rarity-chip[data-r="A"] b, .rarity-chip[data-r="S"] b, .rarity-chip[data-r="SS"] b {
+  color: rgb(var(--color-accent));
+}
+
+.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table th, .data-table td { padding: 6px 10px; border-bottom: 1px solid rgb(var(--color-frame)); text-align: left; }
+.data-table th { color: rgb(var(--color-text-muted)); font-weight: 400; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+select, input[type="text"], input[type="number"] {
+  background: rgb(var(--color-background)); border: 1px solid rgb(var(--color-frame));
+  color: rgb(var(--color-text)); padding: 6px 10px; border-radius: 8px; font-family: inherit; font-size: 13px;
+}
+#toast {
+  position: fixed; bottom: 20px; left: calc(50% + var(--chat-w) / 2); transform: translateX(-50%);
+  padding: 10px 20px; border-radius: var(--radius-pill);
+  background: rgb(var(--color-surface)); border: 1px solid rgb(var(--color-primary));
+  font-size: 13px; z-index: 200; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+#toast.show { opacity: 1; }
+@media (max-width: 768px) {
+  .app-body { grid-template-columns: 1fr; }
+  .chat-sidebar { display: none; }
+  #toast { left: 50%; }
+}
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <div class="spinner"></div>
+  <h1>SCP-Unknown-</h1>
+  <p style="color:#8a9694;font-size:13px;letter-spacing:0.18em">収容違反ダンジョン</p>
+</div>
+
+<div id="license-screen" class="hidden">
+  <div class="license-box">
+    <h2>ライセンス確認</h2>
+    <p>本ゲームは <a href="https://scp-wiki.wikidot.com/" target="_blank" rel="noopener">SCP Foundation Wiki</a> のコンテンツを基にした派生作品です。</p>
+    <p>ゲーム内テキスト・データは <strong>CC BY-SA 3.0</strong> の下で提供されます。</p>
+    <p><a href="https://scp-wiki.wikidot.com/licensing-guide" target="_blank" rel="noopener">SCP Foundation Licensing Guide</a></p>
+    <div class="actions" style="margin-top:20px">
+      <button class="btn btn-primary" id="btn-accept-license">同意して開始</button>
+    </div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <header class="top-bar">
+    <div class="brand">SCP-Unknown-<small>収容違反ダンジョン</small></div>
+    <div class="operator-chip" id="operator-chip">
+      <div class="avatar" id="op-avatar">D</div>
+      <div><strong id="op-name">---</strong><br><span id="op-title" style="color:rgb(var(--color-text-muted))">---</span></div>
+    </div>
+    <div class="stat-pills">
+      <span class="pill">許可証 <strong id="h-stamina">0</strong>/<span id="h-stamina-max">0</span></span>
+      <span class="pill" id="h-stamina-timer" style="font-size:10px;color:rgb(var(--color-text-muted))"></span>
+      <span class="pill">予算 <strong id="h-budget">0</strong></span>
+      <span class="pill">Site <strong id="h-site">1</strong></span>
+      <span class="pill">深度 <strong id="h-floor">1</strong></span>
+      <span class="pill">戦力 <strong id="h-power">0</strong></span>
+    </div>
+    <div class="top-actions">
+      <button type="button" id="btn-auth">Google ログイン</button>
+      <button type="button" data-goto="credits">Credits</button>
+      <button type="button" data-goto="dashboard">司令室</button>
+    </div>
+  </header>
+  <div class="app-body">
+    <aside class="chat-sidebar">
+      <div class="chat-tabs" id="chat-tabs">
+        <button type="button" data-channel="all" class="active">全体</button>
+        <button type="button" data-channel="question">質問</button>
+      </div>
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input-row">
+        <input type="text" id="chat-input" placeholder="メッセージ…（200字）" maxlength="200">
+        <button type="button" class="btn btn-sm btn-primary" id="chat-send">送信</button>
+      </div>
+      <div class="chat-footer" id="chat-footer">Site-Unknown 通信網</div>
+    </aside>
+    <main class="main-area" id="main"></main>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="data.js"></script>
+<script src="game.js"></script>
+<script src="sector.js"></script>
+<script>
+let state = null;
+let currentView = "dashboard";
+let chatChannel = "all";
+
+/* ===== Firebase 全体チャット（財団通信網） ===== */
+// API キーは公開前提の値。不正防止は Realtime Database のセキュリティルール側で行う
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCbu_DbJk5p4Y4m0sFqcml_3l1uYxN6QCE",
+  authDomain: "scp-unknown.firebaseapp.com",
+  databaseURL: "https://scp-unknown-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "scp-unknown",
+  storageBucket: "scp-unknown.firebasestorage.app",
+  messagingSenderId: "70413225498",
+  appId: "1:70413225498:web:4f9b402be49321ecf94ba3",
+};
+let fbDb = null;
+let fbAuthed = false;
+let fbMessages = [];
+const FB_CHAT_LIMIT = 50;
+let fbUser = null;
+let fbLastSyncUid = null;
+let cloudSaveTimer = 0;
+let cloudSaveState = "off"; // off / idle / saved / error
+
+function initFirebaseChat() {
+  if (typeof firebase === "undefined") return;
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    fbDb = firebase.database();
+    firebase.auth().onAuthStateChanged((user) => {
+      fbUser = user;
+      fbAuthed = !!user;
+      updateAuthUi();
+      // Google ログインが新たに有効になったタイミングでセーブを同期
+      if (user && !user.isAnonymous && fbLastSyncUid !== user.uid) {
+        fbLastSyncUid = user.uid;
+        syncCloudSave();
+      }
+    });
+    // チャット用。Google 未ログイン時は匿名で入る
+    if (!firebase.auth().currentUser) {
+      firebase.auth().signInAnonymously().catch(() => { fbAuthed = false; });
+    }
+    fbDb.ref("chat/all").limitToLast(FB_CHAT_LIMIT).on("child_added", (snap) => {
+      const m = snap.val();
+      if (!m || typeof m.text !== "string") return;
+      fbMessages.push({
+        user: String(m.user || "Unknown").slice(0, 40),
+        text: m.text.slice(0, 200),
+        ts: typeof m.ts === "number" ? m.ts : Date.now(),
+      });
+      if (fbMessages.length > FB_CHAT_LIMIT) fbMessages = fbMessages.slice(-FB_CHAT_LIMIT);
+      if (chatChannel === "all") renderChat();
+    });
+  } catch (e) {
+    fbDb = null;
+  }
+}
+
+function updateAuthUi() {
+  const btn = document.getElementById("btn-auth");
+  if (!btn) return;
+  if (fbUser && !fbUser.isAnonymous) {
+    const name = (fbUser.displayName || fbUser.email || "Google").split("@")[0];
+    const mark = cloudSaveState === "saved" ? "・同期済" : cloudSaveState === "error" ? "・同期失敗" : "";
+    btn.textContent = `${name}${mark}`;
+    btn.classList.add("authed");
+  } else {
+    btn.textContent = "Google ログイン";
+    btn.classList.remove("authed");
+  }
+}
+
+async function handleAuthButton() {
+  if (typeof firebase === "undefined") { toast("ネットワーク未接続です"); return; }
+  if (fbUser && !fbUser.isAnonymous) {
+    const ok = await showConfirm({ title: "ログアウト", body: "ログアウトしますか？ ローカルのセーブは残ります。" });
+    if (!ok) return;
+    await firebase.auth().signOut();
+    fbLastSyncUid = null;
+    cloudSaveState = "off";
+    firebase.auth().signInAnonymously().catch(() => {});
+    return;
+  }
+  const provider = new firebase.auth.GoogleAuthProvider();
+  try {
+    await firebase.auth().signInWithPopup(provider);
+  } catch (e) {
+    if (e?.code !== "auth/popup-closed-by-user") toast("ログインに失敗しました");
+  }
+}
+
+/** クラウドへ保存（1.5秒デバウンス）。Google ログイン中のみ */
+function pushCloudSave(s) {
+  if (!fbDb || !fbUser || fbUser.isAnonymous) return;
+  clearTimeout(cloudSaveTimer);
+  cloudSaveTimer = setTimeout(() => {
+    try {
+      fbDb.ref(`saves/${fbUser.uid}`).set({
+        data: JSON.stringify(s),
+        ts: Date.now(),
+        version: GAME_DATA.version || "",
+      });
+      cloudSaveState = "saved";
+      updateAuthUi();
+    } catch (e) {
+      cloudSaveState = "error";
+      updateAuthUi();
+    }
+  }, 1500);
+}
+window.onGameSaved = (s) => pushCloudSave(s);
+
+/** ログイン時の同期。新しい方を採用する（クラウドが新しければ確認して読み込む） */
+async function syncCloudSave() {
+  if (!fbDb || !fbUser || fbUser.isAnonymous || !state) return;
+  try {
+    const snap = await fbDb.ref(`saves/${fbUser.uid}`).get();
+    const cloud = snap.val();
+    if (!cloud?.data) {
+      pushCloudSave(state);
+      toast("クラウドにセーブを作成しました");
+      return;
+    }
+    const localTs = state.savedAt || 0;
+    if ((cloud.ts || 0) > localTs + 1000) {
+      const ok = await showConfirm({
+        title: "クラウドセーブの検出",
+        body: `クラウドに新しいセーブ（${new Date(cloud.ts).toLocaleString("ja-JP")}）があります。読み込みますか？ 現在のローカルセーブは上書きされます。`,
+      });
+      if (!ok) { pushCloudSave(state); return; }
+      state = JSON.parse(cloud.data);
+      migrateState(state);
+      applySiteBonuses(state);
+      saveGame(state);
+      render();
+      toast("クラウドからセーブを読み込みました");
+    } else {
+      pushCloudSave(state);
+    }
+  } catch (e) {
+    toast("クラウド同期に失敗しました");
+  }
+}
+
+/** 全体チャンネルの表示用。Firebase の共有ログにローカルの指揮官メッセージを混ぜる */
+function mergedAllChat() {
+  const local = (state.chatLog || []).filter((m) => m.channel === "all" && m.user === "指揮官");
+  return [...local, ...fbMessages].sort((a, b) => (a.ts || 0) - (b.ts || 0));
+}
+
+function sendFirebaseChat(text) {
+  if (!fbDb || !fbAuthed) return false;
+  const profile = state.profile || {};
+  fbDb.ref("chat/all").push({
+    user: String(profile.codename || "Researcher").slice(0, 40),
+    text: text.slice(0, 200),
+    ts: firebase.database.ServerValue.TIMESTAMP,
+  });
+  return true;
+}
+let selectedUnits = [];
+let crossParentA = null;
+let crossParentB = null;
+let crossJustDragged = false;
+let equipPickSlot = null;
+let equipRarityTab = "ALL";
+let equipSortBy = "rarity";
+let equipSkillOnly = false;
+let equipWeaponTypeTab = "ALL";
+let attachFilterRarity = "ALL";
+let attachFilterSort = "rarity";
+let sentryPlaceMode = false;
+let sentryPreview = null;
+let sentryBusy = false;
+let codexClass = "ALL";
+let codexFound = "ALL";
+let codexKind = "ALL";
+let codexSort = "scp";
+let siteInspectLevel = 0;
+let alchemyKindTab = "ALL";
+let alchemyRarityTab = "ALL";
+let alchemySortBy = "rarity";
+let alchemyCraftableOnly = false;
+let crossClass = "ALL";
+let crossKind = "ALL";
+let crossSort = "rev";
+
+const CRAFT_KIND_LABELS = {
+  part: "部品精製",
+  object: "収容アイテム",
+  gear: "装備",
+  attach: "アタッチメント",
+  artifact: "アーティファクト",
+};
+
+const VIEW_TITLES = {
+  dashboard: "司令室",
+  map: "MAP選択",
+  explore: "区画探索",
+  site: "拠点強化",
+  equipment: "装備",
+  squad: "編成",
+  cross: "収容物体合成実験",
+  chamber: "自動試験槽",
+  alchemy: "SCP-914 工廠",
+  codex: "異能図鑑",
+  profile: "プロフィール",
+  items: "入手アイテム整理",
+  roster: "収容個体",
+  help: "ヘルプ",
+  board: "掲示板",
+  credits: "Credits",
+};
+
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 2800);
+}
+
+function classColor(cls) { return GAME_DATA.classColors[cls] || "#5a7a98"; }
+
+function catalogArtHtml(catalogId) {
+  const cat = GAME_DATA.catalog[catalogId];
+  const color = classColor(cat?.class);
+  const label = (cat?.scp || catalogId).replace(/^SCP-(Unknown-)?/, "");
+  return `<div class="catalog-art" style="border-color:${color}">
+    <img src="assets/scp/${catalogId}.png" alt="" draggable="false" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+    <span class="ph-fallback" style="color:${color}">${escapeHtml(label)}</span>
+  </div>`;
+}
+
+function placeholderBadge(unit) {
+  return catalogArtHtml(unit.catalogId);
+}
+
+function unitCardHtml(unit, opts = {}) {
+  const d = getUnitDisplay(unit);
+  const cat = GAME_DATA.catalog[unit.catalogId];
+  const sel = opts.selected ? " selected" : "";
+  const onclick = opts.onclick ? ` onclick="${opts.onclick}"` : "";
+  const drag = opts.draggable ? ` draggable="true"` : "";
+  return `<div class="unit-card${sel}" data-uid="${unit.uid}"${onclick}${drag}>
+    ${placeholderBadge(unit)}
+    <span class="badge" style="background:${classColor(cat.class)}33;color:${classColor(cat.class)}">${cat.class}</span>
+    <div class="name">${cat.scp}</div>
+    <div class="name" style="font-size:12px;color:rgb(var(--color-text-muted))">${cat.name}</div>
+    <div class="meta">Lv.${unit.level}/${d.maxLv} Rev.${unit.rev}${unit.reclass ? ` R${unit.reclass}` : ""}</div>
+    <div class="stats">
+      <span>HP ${d.stats.hp}</span><span>物攻 ${d.stats.atk}</span>
+      <span>異能 ${d.stats.anm}</span><span>防御 ${d.stats.def}</span>
+    </div>
+    ${opts.extra || ""}
+  </div>`;
+}
+
+function goView(view) {
+  currentView = view;
+  selectedUnits = [];
+  sentryPlaceMode = false;
+  sentryPreview = null;
+  render();
+}
+
+function viewHeader(title) {
+  if (currentView === "dashboard") return "";
+  return `<div class="view-header">
+    <button type="button" class="back-btn" id="btn-back">← 司令室</button>
+    <h1>${title || VIEW_TITLES[currentView] || currentView}</h1>
+  </div>`;
+}
+
+function updateHeader() {
+  applyStaminaRegen(state);
+  document.getElementById("h-stamina").textContent = state.stamina;
+  document.getElementById("h-stamina-max").textContent = state.staminaMax;
+  document.getElementById("h-budget").textContent = state.budget.toLocaleString();
+  document.getElementById("h-site").textContent = state.siteLevel;
+  document.getElementById("h-floor").textContent = state.floor;
+  document.getElementById("h-power").textContent = calcSquadPower(state).toLocaleString();
+  document.getElementById("h-stamina-timer").textContent = formatStaminaTimer(state);
+  const p = state.profile || {};
+  document.getElementById("op-name").textContent = p.codename || "Researcher";
+  document.getElementById("op-title").textContent = `Level-${p.clearance || 1} ${p.title || ""}`;
+  document.getElementById("op-avatar").textContent = (p.codename || "R").charAt(0);
+}
+
+function renderChat() {
+  const box = document.getElementById("chat-messages");
+  if (!box) return;
+  const display = chatChannel === "all"
+    ? mergedAllChat()
+    : (state.chatLog || []).filter((m) => m.channel === chatChannel);
+  box.innerHTML = display.map((m) => {
+    const whoClass = m.user === "指揮官" ? "cmd" : "";
+    const t = new Date(m.ts).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+    return `<div class="chat-msg"><span class="who ${whoClass}">${m.user}</span><span class="time">${t}</span><div class="text">${escapeHtml(m.text)}</div></div>`;
+  }).join("");
+  box.scrollTop = box.scrollHeight;
+  const netStatus = chatChannel === "all"
+    ? (fbDb ? (fbAuthed ? "オンライン" : "認証中…") : "オフライン")
+    : "ローカル";
+  document.getElementById("chat-footer").textContent =
+    `通信網 — ${display.length} 件 / チャンネル: ${chatChannel === "all" ? "全体" : "質問"} / ${netStatus}`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function render() {
+  updateHeader();
+  renderChat();
+  const main = document.getElementById("main");
+  const views = {
+    dashboard: renderDashboard,
+    map: renderMap,
+    explore: renderExplore,
+    site: renderSite,
+    equipment: renderEquipment,
+    squad: renderSquad,
+    cross: renderCross,
+    chamber: renderChamber,
+    alchemy: renderAlchemy,
+    codex: renderCodex,
+    profile: renderProfile,
+    items: renderItems,
+    roster: renderRoster,
+    help: renderHelp,
+    board: renderBoard,
+    credits: renderCredits,
+  };
+  const body = views[currentView] ? views[currentView]() : "";
+  main.innerHTML = (currentView !== "dashboard" ? viewHeader() : "") + body;
+  bindViewEvents();
+  syncSectorLoop();
+}
+
+/* --- 区画スキャンマップ --- */
+let sectorSim = null;
+let sectorRaf = null;
+let sectorLastTs = 0;
+let sectorSaveTimer = 0;
+let bossPlayback = false;
+
+function syncSectorLoop() {
+  const floorData = currentFloorData(state);
+  const squadKey = `op|${(state.squad || []).join(",")}`;
+  const mapSite = state.mapSite || defaultMapSiteId();
+  // 整理画面でも巡回を止めない。入手アイテムは裏で増え続ける
+  if (!sectorSim || sectorSim.depth !== floorData.depth || sectorSim.squadKey !== squadKey || sectorSim.mapSite !== mapSite) {
+    sectorSim = createSectorSim(state, floorData);
+  }
+  renderReconLog();
+  if (sectorRaf === null) {
+    sectorLastTs = performance.now();
+    sectorRaf = requestAnimationFrame(sectorFrame);
+  }
+}
+
+function stopSectorLoop() {
+  if (sectorRaf !== null) {
+    cancelAnimationFrame(sectorRaf);
+    sectorRaf = null;
+  }
+}
+
+function sectorFrame(ts) {
+  if (!sectorSim) {
+    sectorRaf = null;
+    return;
+  }
+  const dt = Math.min(0.05, (ts - sectorLastTs) / 1000);
+  sectorLastTs = ts;
+  const canvas = document.getElementById("sector-canvas");
+
+  if (bossPlayback) {
+    if (canvas) drawSector(canvas.getContext("2d"), sectorSim);
+    sectorRaf = requestAnimationFrame(sectorFrame);
+    return;
+  }
+
+  const { changed, breach, bossHit } = updateSectorSim(sectorSim, state, dt);
+  if (canvas) drawSector(canvas.getContext("2d"), sectorSim);
+
+  if (bossHit) {
+    beginBossPlayback();
+    sectorRaf = requestAnimationFrame(sectorFrame);
+    return;
+  }
+  if (breach) {
+    toast(breach.win ? `収容違反体を制圧 — 深度 ${state.floor} へ` : "収容違反体に敗北 — 編成を見直してください");
+    sectorRaf = null;
+    render();
+    return;
+  }
+  if (changed) {
+    renderReconLog();
+    updateHeader();
+    refreshPendingLive();
+    sectorSaveTimer = 0;
+  }
+  updateRevealHud();
+  sectorSaveTimer += dt;
+  if (sectorSaveTimer > 5 && (sectorSim.contacts > 0 || (state.revealedRooms || []).length > 0)) {
+    saveGame(state);
+    sectorSaveTimer = 0;
+  }
+
+  sectorRaf = requestAnimationFrame(sectorFrame);
+}
+
+function renderReconLog() {
+  const box = document.getElementById("recon-log");
+  updateRevealHud();
+  if (!box || !sectorSim) return;
+  const counter = document.getElementById("sector-contacts");
+  if (counter) counter.textContent = `接触 ${sectorSim.contacts}`;
+  updateClearGauge();
+  if (!sectorSim.events.length) return;
+  box.innerHTML = sectorSim.events.slice(-20).reverse()
+    .map((e) => `<div class="contact">${escapeHtml(e)}</div>`).join("");
+  box.scrollTop = 0;
+}
+
+function updateRevealHud() {
+  const el = document.getElementById("sector-reveal");
+  if (!el || !sectorSim) return;
+  const total = sectorSim.sector.rooms.length;
+  const n = sectorSim.revealed instanceof Set ? sectorSim.revealed.size : 0;
+  const pct = total ? Math.floor((n / total) * 100) : 0;
+  el.textContent = `解明 ${n}/${total}  ${pct}%`;
+}
+
+/** 診断バナーを閉じた時点の連敗数。次に負けると再表示される */
+let adviceDismissedLosses = -1;
+
+function adviceVisible() {
+  return (state.breachLosses || 0) !== adviceDismissedLosses;
+}
+
+/** 診断バナーとクールダウン表示をまとめて引っ込める */
+function dismissAdvice() {
+  adviceDismissedLosses = state.breachLosses || 0;
+  document.querySelector(".breach-advice")?.remove();
+  updateClearGauge();
+}
+
+function clearGaugeLabel() {
+  if (state.sectorCleared) return "区画制圧率 — 制圧済み";
+  if (isBreachReady(state)) return "区画制圧率 — MAX";
+  const cooldown = Math.ceil(((state.breachCooldownUntil || 0) - Date.now()) / 1000);
+  if (cooldown > 0 && adviceVisible()) return `区画制圧率 — ${cooldown} 秒`;
+  return "区画制圧率";
+}
+
+/** 掃討率ゲージは再描画せず直接更新する（毎接触で render すると重い） */
+function updateClearGauge() {
+  const gauge = document.getElementById("clear-gauge");
+  if (!gauge) return;
+  const need = killsNeeded(state.floor);
+  const kills = Math.min(state.clearKills, need);
+  const ready = isBreachReady(state);
+  document.getElementById("clear-count").textContent = `${kills} / ${need}`;
+  const fill = document.getElementById("clear-fill");
+  fill.style.width = `${Math.round((kills / need) * 100)}%`;
+  fill.className = `meter-fill ${ready || state.sectorCleared ? "red" : "teal"}`;
+  document.getElementById("clear-label").textContent = clearGaugeLabel();
+  gauge.classList.toggle("breach", ready && !sectorSim?.boss);
+  const btn = document.getElementById("btn-boss");
+  if (btn) {
+    const hunting = !!(sectorSim?.boss || bossPlayback);
+    btn.disabled = !ready || hunting;
+    btn.textContent = hunting ? "接近中" : "BOSS挑戦";
+  }
+}
+
+function meterBar(label, value, max, cssClass, suffix = "") {
+  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
+  return `<div class="meter">
+    <div class="meter-head"><span>${label}</span><span>${value}${suffix} / ${max}${suffix}</span></div>
+    <div class="meter-bar"><div class="meter-fill ${cssClass}" style="width:${pct}%"></div></div>
+  </div>`;
+}
+
+/** 司令室に出す未整理アイテムの内訳（上位6件） */
+function lootSummaryHtml() {
+  if (!state.pending.length) {
+    return `<span style="font-size:11px;color:rgb(var(--color-text-muted))">未整理なし</span>`;
+  }
+  const top = [...state.pending].sort((a, b) => b.qty - a.qty).slice(0, 6);
+  const rest = state.pending.length - top.length;
+  return top.map((e) =>
+    `<span class="loot-chip" style="border-color:${gradeColor(e.id)}66">${escapeHtml(itemName(e.id))} <b>${e.qty}</b></span>`
+  ).join("") + (rest > 0 ? `<span class="loot-chip">他 ${rest} 種</span>` : "");
+}
+
+function incidentLogHtml() {
+  return (state.battleLog || []).map((l) => {
+    if (l.includes("成功")) return `<div class="win">${l}</div>`;
+    if (l.includes("失敗")) return `<div class="lose">${l}</div>`;
+    return `<div>${l}</div>`;
+  }).join("");
+}
+
+function siteLabel(s) {
+  return s.alias ? `${s.name}（${s.alias}）` : s.name;
+}
+
+function renderMap() {
+  const current = currentMapSite(state).id;
+  const pois = GAME_DATA.mapSites.map((s) => {
+    const prog = siteProgressOf(state, s.id);
+    const title = `${siteLabel(s)} — ${s.desc} ${floorName(prog.floor)}`;
+    return `<button type="button" class="map-poi${s.id === current ? " active" : ""}" data-map-site="${s.id}" style="left:${s.x}%;top:${s.y}%" title="${escapeHtml(title)}">
+      <span class="pin"></span>
+      <span class="tag">${escapeHtml(s.code)}<small>${escapeHtml(s.kindLabel)} · ${floorName(prog.floor)}</small></span>
+    </button>`;
+  }).join("");
+  const cur = currentMapSite(state);
+  return `<div class="panel city-map-panel">
+    ${rarityHudHtml(state.floor)}
+    <p class="city-map-note">JP-81 // セキュリティ施設 — 展開地点を選択（真鍮が現在地点）。各地点の収容層進行は独立。</p>
+    <div class="city-map">
+      <img src="assets/map/SCP-TOKYO.jpg" alt="SCP-Unknown TOKYO">
+      ${pois}
+    </div>
+    <div class="map-site-blurb">
+      <strong>${escapeHtml(siteLabel(cur))}</strong>
+      <span class="kind">${escapeHtml(cur.kindLabel)}</span>
+      <p>${escapeHtml(cur.desc)}</p>
+    </div>
+  </div>`;
+}
+
+function renderDashboard() {
+  const site = GAME_DATA.siteUpgrades[state.siteLevel - 1];
+  const mapSite = currentMapSite(state);
+  const floorData = currentFloorData(state);
+  const squadUnits = getSquadUnits(state);
+  const power = calcSquadPower(state);
+  const breachRisk = Math.min(95, Math.floor(state.floor * 1.5 + state.siteLevel * 3));
+  const containment = Math.min(100, 40 + state.siteLevel * 12);
+
+  const profile = state.profile || { codename: "司令官", title: "収容担当" };
+  const squadMini = [];
+  squadMini.push(`<div class="squad-mini"><div class="icon operator">${escapeHtml((profile.codename || "OP").slice(0, 2))}</div><div class="lv">主人公</div></div>`);
+  for (let i = 0; i < 5; i++) {
+    const u = squadUnits[i];
+    if (u) {
+      const cat = GAME_DATA.catalog[u.catalogId];
+      const c = classColor(cat.class);
+      squadMini.push(`<div class="squad-mini"><div class="icon" style="background:${c}22;border-color:${c};color:${c}">${cat.name.slice(0, 2)}</div><div class="lv">Lv.${u.level}</div></div>`);
+    } else {
+      squadMini.push(`<div class="squad-mini"><div class="icon" style="opacity:0.3">—</div><div>空</div></div>`);
+    }
+  }
+
+  const menuBtn = (view, icon, label, sub = "", disabled = false) =>
+    `<button type="button" class="menu-btn${disabled ? " disabled" : ""}" data-goto="${view}" ${disabled ? "disabled" : ""}>
+      <span class="icon">${icon}</span><span class="label">${label}</span>${sub ? `<span class="sub">${sub}</span>` : ""}
+    </button>`;
+
+  const itemCount = storageUsed(state);
+  const maxRev = state.units.reduce((m, u) => Math.max(m, u.rev), 0);
+  const chamberMax = site.chamberSlots;
+  const incidentHtml = incidentLogHtml();
+  const needKills = killsNeeded(state.floor);
+  const clearKills = Math.min(state.clearKills, needKills);
+  const clearPct = Math.round((clearKills / needKills) * 100);
+  const breachReady = isBreachReady(state);
+  const boostLeft = Math.max(0, Math.ceil(((state.boostUntil || 0) - Date.now()) / 1000));
+  const advice = adviceVisible() ? breachAdvice(state) : null;
+
+  return `
+  <div class="tac-panel">
+    ${rarityHudHtml(state.floor)}
+    <div class="sector-head">
+      <button type="button" class="btn btn-secondary btn-map-select" id="btn-map-select">MAP選択</button>
+      <div>
+        <div class="label" style="margin-bottom:2px">区画探索 — ${escapeHtml(siteLabel(mapSite))}</div>
+        <h2 style="margin:0;font-family:var(--font-display);font-size:1.2rem;letter-spacing:0.1em">${floorData.name}</h2>
+        <p style="font-size:11px;color:rgb(var(--color-text-muted))">${escapeHtml(mapSite.desc)} — JP-81 / ${mapSite.code} — 深度 ${floorData.depth} / 最深 ${state.maxFloor} — 敵性反応 ${floorData.enemies.length} 系統</p>
+      </div>
+      <div class="sector-legend">
+        <span><i class="dot op"></i>展開チーム 主人公+${squadUnits.length}</span>
+        <span><i class="dot red"></i>異常個体</span>
+        <span><i class="dot sentry"></i>セントリー</span>
+        <span id="sector-contacts">接触 0</span>
+      </div>
+    </div>
+    <div class="breach-row">
+      <div class="clear-gauge${breachReady ? " breach" : ""}" id="clear-gauge">
+        <div class="clear-head">
+          <span id="clear-label">${clearGaugeLabel()}</span>
+          <span id="clear-count">${clearKills} / ${needKills}</span>
+        </div>
+        <div class="meter-bar"><div class="meter-fill ${breachReady ? "red" : "teal"}" id="clear-fill" style="width:${clearPct}%"></div></div>
+      </div>
+      <button type="button" class="btn btn-accent" id="btn-boss" ${breachReady && !sectorSim?.boss && !bossPlayback ? "" : "disabled"}>${sectorSim?.boss ? "接近中" : "BOSS挑戦"}</button>
+    </div>
+    ${advice ? `<div class="breach-advice">
+      <div class="advice-head">
+        <span>BOSS突破に失敗 — ${state.breachLosses} 連敗</span>
+        <button type="button" class="advice-close" onclick="dismissAdvice()" title="閉じる">✕</button>
+      </div>
+      <p>${advice}</p>
+      <div class="advice-actions">
+        <button type="button" class="btn btn-sm btn-secondary" data-goto="items">アイテム</button>
+        <button type="button" class="btn btn-sm btn-secondary" data-goto="codex">異能図鑑</button>
+        <button type="button" class="btn btn-sm btn-secondary" data-goto="cross">収容物体合成実験</button>
+        <button type="button" class="btn btn-sm btn-secondary" data-goto="squad">編成</button>
+      </div>
+    </div>` : ""}
+    <div class="sector-grid">
+      <div>
+        <div class="sector-wrap">
+          <canvas id="sector-canvas" width="920" height="430" class="${sentryPlaceMode ? "place-sentry" : ""}"></canvas>
+          ${sectorSim?.boss ? `<div class="sentry-banner">収容違反体が接近中 — 展開チームへ直進する</div>` : ""}
+          ${sentryPlaceMode ? `<div class="sentry-banner">解明した室内にセントリーガンを配置してください（${(state.sentries || []).length}/${SENTRY_MAX}）</div>` : ""}
+          <div class="sector-hud" id="sector-reveal">解明 0/0</div>
+          <div class="sector-hud-meta">SCAN // JP-81 // ${mapSite.code} // DEPTH ${String(floorData.depth).padStart(2, "0")}</div>
+        </div>
+        <div class="explore-actions">
+          <div class="tactics-row">
+            <span class="label">戦術スキル</span>
+            <button type="button" class="btn btn-secondary btn-sentry${sentryPlaceMode ? " placing" : ""}" id="btn-sentry" title="解明した室内に自動射撃砲台を設置（最大2）。設置済みをクリックで削除">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><polygon points="8,2 14,14 2,14"/></svg>
+              セントリーガン
+              <span class="sentry-count">${(state.sentries || []).length}/${SENTRY_MAX}</span>
+            </button>
+            <button type="button" class="btn btn-primary" id="btn-boost" title="許可証 1 枚 / 60秒間、巡回速度×2" ${state.stamina < 1 ? "disabled" : ""}>緊急展開（巡回速度×２）</button>
+            <button type="button" class="btn btn-secondary" id="btn-force-breach" title="許可証 5 枚 / キル報酬なしで制圧率を即MAX" ${state.stamina < 5 || breachReady || state.sectorCleared ? "disabled" : ""}>強行突入（区画制圧率をMAX）</button>
+            <button type="button" class="btn btn-secondary" data-goto="squad">編成</button>
+            ${boostLeft > 0 ? `<span class="boost-chip">加速中 ${boostLeft}s</span>` : ""}
+          </div>
+        </div>
+      </div>
+      <div class="sector-side">
+        <div>
+          <div class="label">索敵ログ</div>
+          <div class="battle-log" id="recon-log">
+            <div style="color:rgb(var(--color-text-muted))">部隊が区画を巡回中…</div>
+          </div>
+        </div>
+        <div class="loot-panel" data-goto="items" style="border:1px solid rgb(var(--color-frame));border-radius:8px;padding:8px 10px">
+          <div class="label" style="display:flex;justify-content:space-between">
+            <span>入手アイテム整理</span>
+            <span style="font-family:Consolas,monospace;color:rgb(var(--color-accent))">${pendingTotal(state)} 個</span>
+          </div>
+          <div class="loot-summary">${lootSummaryHtml()}</div>
+          <div style="font-size:10px;color:rgb(var(--color-text-muted));margin-top:6px">
+            倉庫 ${storageUsed(state)}/${state.storageSlots} — クリックで整理画面へ
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tac-panel">
+    <div class="label">展開部隊 STATUS</div>
+    <div class="dash-squad">
+      <div>
+        <div class="dash-power">${power.toLocaleString()}<small>総合戦力指数</small></div>
+        <div class="squad-strip">${squadMini.join("")}</div>
+      </div>
+      <div class="dash-meters">
+        ${meterBar("許可証", state.stamina, state.staminaMax, "purple")}
+        ${meterBar("探索進行", state.floor, 50, "purple")}
+        ${meterBar("収容安定度", containment, 100, "teal", "%")}
+        ${meterBar("違反リスク推定", breachRisk, 100, breachRisk > 70 ? "red" : "amber", "%")}
+      </div>
+    </div>
+  </div>
+
+  <div class="menu-section">
+    <div class="menu-row">
+      <div class="menu-cat base">拠点</div>
+      <div class="menu-btns">
+        ${menuBtn("site", "🏗", "拠点強化", `Lv.${state.siteLevel}`)}
+        ${menuBtn("equipment", "🛡", "装備", `×${ownedGearCount(state)}`)}
+      </div>
+    </div>
+    <div class="menu-row">
+      <div class="menu-cat tactical">戦術</div>
+      <div class="menu-btns">
+        ${menuBtn("squad", "⚔", "編成", `主人公+${squadUnits.length}/5`)}
+        ${menuBtn("cross", "🧪", "収容物体合成実験", `Rev.${maxRev}`)}
+        ${menuBtn("chamber", "🔬", "試験槽", state.units.length >= GAME_DATA.chamberUnlockCount ? `${state.chamber.length}/${chamberMax}` : "要7体")}
+        ${menuBtn("alchemy", "⚗", "SCP-914", `×${craftableList().length}`)}
+        ${menuBtn("", "📋", "作戦立案", "準備中", true)}
+        ${menuBtn("", "🛰", "遠征", "準備中", true)}
+      </div>
+    </div>
+    <div class="menu-row">
+      <div class="menu-cat database">DB</div>
+      <div class="menu-btns">
+        ${menuBtn("codex", "📖", "異能図鑑", `${state.discovered.length}/${Object.keys(GAME_DATA.catalog).length}`)}
+        ${menuBtn("profile", "👤", "プロフィール", `Lv.${state.profile?.clearance || 1}`)}
+        ${menuBtn("items", "📦", "倉庫", `${itemCount}/${state.storageSlots}`)}
+        ${menuBtn("roster", "👾", "収容個体", `×${state.units.length}`)}
+      </div>
+    </div>
+    <div class="menu-row">
+      <div class="menu-cat settings">設定</div>
+      <div class="menu-btns">
+        ${menuBtn("explore", "🚪", "ダンジョン", `Lv.${state.floor}`)}
+        ${menuBtn("help", "❓", "ヘルプ", "")}
+        ${menuBtn("board", "📌", "掲示板", "")}
+        ${menuBtn("credits", "©", "Credits", "")}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderExplore() {
+  const floorData = currentFloorData(state);
+  const logHtml = incidentLogHtml();
+  const reconHtml = (sectorSim?.events || []).slice(-40).reverse()
+    .map((e) => `<div class="contact">${escapeHtml(e)}</div>`).join("");
+  return `<div class="panel">
+    <p style="font-size:13px;color:rgb(var(--color-text-muted))">${escapeHtml(siteLabel(currentMapSite(state)))} ${floorData.name} (深度 ${floorData.depth}) — ${escapeHtml(currentMapSite(state).desc)} — 敵性反応 ${floorData.enemies.length} 系統</p>
+    <p style="font-size:12px;margin-top:6px">区画制圧率 <strong>${Math.min(state.clearKills, killsNeeded(state.floor))} / ${killsNeeded(state.floor)}</strong> — MAX で BOSS挑戦。巡回は司令室の MAP で進行中。</p>
+  </div>
+  <div class="panel"><h2>索敵ログ（接触 ${sectorSim?.contacts || 0} 件）</h2>
+    <div class="battle-log" style="max-height:180px">${reconHtml || "<div style='color:rgb(var(--color-text-muted))'>接触なし</div>"}</div>
+  </div>
+  <div class="panel"><h2>インシデントログ</h2>
+    <div class="battle-log">${logHtml || "<div style='color:rgb(var(--color-text-muted))'>まだ探索していません</div>"}</div>
+  </div>`;
+}
+
+/** 武器個体（uid）のアタッチ8枠アイコン列。装備行・選択一覧で共用。クリックでその枠の変更画面へ */
+function attachIconsRowHtml(state, uid, cls) {
+  const loadout = loadoutOf(state, uid);
+  return `<span class="${cls}">${GAME_DATA.attachSlots.map((s) => {
+    const inst = attachInstOf(loadout[s.id]);
+    if (!inst) {
+      return `<button type="button" class="equip-att-ic empty" data-att-uid="${uid}" data-attach-kind="${s.id}" title="${escapeHtml(s.name)}：未装着">+</button>`;
+    }
+    return `<button type="button" class="equip-att-ic r-${inst.rarity}" data-att-uid="${uid}" data-attach-kind="${s.id}" title="${escapeHtml(s.name)}：${escapeHtml(itemName(inst.id))} ${rarityStars(inst.rarity)}">
+      <img src="assets/item/${inst.id}.png" alt="" onerror="this.style.opacity='0.2'">
+    </button>`;
+  }).join("")}</span>`;
+}
+
+function renderEquipment() {
+  const { stats, skills } = operatorDisplayStats(state);
+  const statMax = GAME_DATA.operatorStatMax;
+  const statKeys = [
+    ["hp", "HP"], ["atk", "物攻"], ["anm", "異能"],
+    ["def", "防御"], ["spd", "機動"], ["luck", "運"],
+  ];
+  const statHtml = statKeys.map(([k, label]) => {
+    const raw = stats[k] | 0;
+    const shown = Math.min(statMax, Math.max(0, raw));
+    const pct = Math.round((shown / statMax) * 100);
+    return `<div class="equip-stat s-${k}">
+      <span>${label}</span>
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      <b>${shown}/${statMax}</b>
+    </div>`;
+  }).join("");
+  const skillHtml = skills.length
+    ? skills.map((s) => `<div class="sk"><strong>${escapeHtml(s.name)}</strong> — ${escapeHtml(s.desc)}</div>`).join("")
+    : `<div class="sk">固有スキルなし</div>`;
+
+  const slotsHtml = GAME_DATA.gearSlots.map((slot) => {
+    const piece = gearPieceOf(state.operatorGear?.[slot.id]);
+    const id = piece?.id;
+    const meta = id ? itemMeta(id) : null;
+    const lv = piece?.lv || 0;
+    const active = equipPickSlot === slot.id ? " active" : "";
+    const wType = slot.id === "mainWeapon" && id ? weaponTypeOf(id) : null;
+    const wBadge = wType ? `<span class="wt-badge wt-${wType}">${weaponTypeName(id)}</span>` : "";
+    const itemLine = meta
+      ? `${wBadge}${escapeHtml(meta.name)}<span class="stars">${rarityStars(meta.rarity)}</span><span class="lv-badge">Lv.${lv}</span>`
+      : `<span class="empty">未装備</span>`;
+    const icon = meta
+      ? `<img class="icon" src="assets/item/${id}.png" alt="" onerror="this.style.opacity='0.2'">`
+      : `<span class="icon empty"></span>`;
+    // アタッチ表示は武器個体（uid）のロードアウト参照。銃のみ装着可、刃は不可表示
+    let attachIcons = `<span class="equip-att-row"></span>`;
+    if (slot.id === "mainWeapon" && piece) {
+      if (wType === "gun") {
+        attachIcons = attachIconsRowHtml(state, piece.uid, "equip-att-row");
+      } else {
+        attachIcons = `<span class="equip-att-row att-na" title="刃にはアタッチメントを装着できません">アタッチ不可</span>`;
+      }
+    }
+    const actions = meta
+      ? `<div class="equip-slot-actions">
+          <button type="button" class="btn btn-sm btn-accent" data-enhance-slot="${slot.id}">強化</button>
+          <button type="button" class="btn btn-sm btn-secondary" data-unequip-slot="${slot.id}">外す</button>
+          ${slot.id === "mainWeapon" && wType === "gun"
+            ? `<button type="button" class="btn btn-sm btn-primary" data-att-uid="${piece.uid}">アタッチメント装備</button>`
+            : ""}
+        </div>`
+      : `<div class="equip-slot-actions"></div>`;
+    return `<div class="equip-slot-row">
+      <div class="equip-slot${active}" data-equip-slot="${slot.id}">
+        ${icon}
+        <span class="slot-name">${slot.name}</span>
+        <span class="slot-item">${itemLine}</span>
+        ${attachIcons}
+        <span class="slot-name">${id ? "変更" : "選択"}</span>
+      </div>
+      ${actions}
+    </div>`;
+  }).join("");
+
+  let pickHtml = "";
+  if (equipPickSlot) {
+    const slot = GAME_DATA.gearSlots.find((s) => s.id === equipPickSlot);
+    const equippedPiece = gearPieceOf(state.operatorGear?.[equipPickSlot]);
+    const equippedMeta = equippedPiece ? itemMeta(equippedPiece.id) : null;
+    const rows = [];
+    if (equippedMeta) {
+      rows.push(equipPickRowHtml(equippedMeta, 0, true, null, equippedPiece, -1));
+    }
+    const filtered = filteredGearCandidates(state, equipPickSlot);
+    for (const c of filtered) {
+      rows.push(equipPickRowHtml(c.meta, c.qty, false, equippedMeta, c, c.index));
+    }
+    const rarityTabs = ["ALL", "SS", "S", "A", "B", "C", "D", "E"].map((t) =>
+      `<button type="button" class="${equipRarityTab === t ? "active" : ""}" data-equip-rtab="${t}">${t === "ALL" ? "すべて" : rarityStars(t)}</button>`
+    ).join("");
+    const sorts = [
+      ["rarity", "★"],
+      ["atk", "物攻"],
+      ["anm", "異能"],
+      ["def", "防御"],
+      ["hp", "HP"],
+      ["name", "名前"],
+    ].map(([id, label]) =>
+      `<button type="button" class="${equipSortBy === id ? "active" : ""}" data-equip-sort="${id}">${label}</button>`
+    ).join("");
+    const emptyMsg = filtered.length
+      ? ""
+      : `<p style="font-size:12px;color:rgb(var(--color-text-muted))">${gearCandidates(state, equipPickSlot).length ? "この条件に合う装備がありません。" : "この枠に入る装備が倉庫にありません。工廠で「装備を作成」してください。"}</p>`;
+    const wtTabs = equipPickSlot === "mainWeapon"
+      ? `<div class="rarity-tabs">${[["ALL", "すべて"], ["gun", "銃"], ["blade", "刃"]].map(([t, label]) =>
+          `<button type="button" class="${equipWeaponTypeTab === t ? "active" : ""}" data-equip-wtab="${t}">${label}</button>`
+        ).join("")}</div>`
+      : "";
+    pickHtml = `<div class="equip-pick panel" style="margin-top:12px">
+      <h3>${slot ? slot.name : ""} — 装備選択</h3>
+      ${wtTabs}
+      <div class="rarity-tabs">${rarityTabs}</div>
+      <div class="sort-tools">
+        ${sorts}
+        <button type="button" class="${equipSkillOnly ? "active" : ""}" id="equip-skill-only">スキルあり</button>
+      </div>
+      ${rows.join("")}${emptyMsg}
+    </div>`;
+  }
+
+  return `<div class="equip-screen">
+    <div class="equip-hero">
+      <img src="assets/user/user.jpg" alt="オペレーター">
+      <div class="equip-stats">${statHtml}</div>
+      <div class="equip-skills">${skillHtml}</div>
+    </div>
+    <div class="equip-right">
+      <div class="label">装備スロット</div>
+      <div class="equip-slot-list">${slotsHtml}</div>
+      ${pickHtml}
+      <p style="font-size:11px;color:rgb(var(--color-text-muted));margin-top:10px">
+        装備補正とスキルは主人公の戦闘にのみ適用。強化 Lv はアイテム個体に付き、外しても残る。武器は「銃」「刃」の2ジャンル。銃は個体ごとに固有IDを持ち、アタッチメントを装着できる（設定は銃の個体ごとに保存され、装着しても倉庫の個体は減らない）。刃はアタッチ不可だが基礎能力が高く、スタックして保管できる。強化は予算と基礎部品（暫定コスト）。
+      </p>
+    </div>
+  </div>`;
+}
+
+function filteredGearCandidates(state, slotId) {
+  let list = gearCandidates(state, slotId);
+  if (equipRarityTab !== "ALL") {
+    list = list.filter((c) => c.meta?.rarity === equipRarityTab);
+  }
+  if (equipSkillOnly) {
+    list = list.filter((c) => c.meta?.skill);
+  }
+  if (slotId === "mainWeapon" && equipWeaponTypeTab !== "ALL") {
+    list = list.filter((c) => weaponTypeOf(c.meta?.id) === equipWeaponTypeTab);
+  }
+  list.sort((a, b) => {
+    if (equipSortBy === "name") return a.meta.name.localeCompare(b.meta.name, "ja");
+    if (equipSortBy === "atk" || equipSortBy === "anm" || equipSortBy === "def" || equipSortBy === "hp") {
+      const diff = (flattenGearStat(b.meta.stat)[equipSortBy] || 0)
+        - (flattenGearStat(a.meta.stat)[equipSortBy] || 0);
+      if (diff) return diff;
+    }
+    const rankDiff = (RARITY_RANK[b.meta.rarity] ?? 0) - (RARITY_RANK[a.meta.rarity] ?? 0);
+    if (rankDiff) return rankDiff;
+    return a.meta.name.localeCompare(b.meta.name, "ja");
+  });
+  return list;
+}
+
+function equipPickRowHtml(meta, qty, equipped, currentMeta, pieceOrCand, fromIndex) {
+  if (!meta) return "";
+  const skill = meta.skill
+    ? `<div class="sk">固有: ${escapeHtml(meta.skill.name)} — ${escapeHtml(meta.skill.desc)}</div>`
+    : "";
+  const lv = pieceOrCand?.lv || 0;
+  const uid = pieceOrCand?.uid || null;
+  const action = equipped
+    ? `data-unequip-slot="${equipPickSlot}"`
+    : `data-equip-id="${meta.id}" data-equip-index="${fromIndex}"`;
+  const nextStat = equipped
+    ? pieceCombatStatFull(state, pieceOrCand)
+    : pieceCombatStatFull(state, makeGearPiece(meta.id, lv, uid));
+  const currentStat = currentMeta ? pieceCombatStatFull(state, gearPieceOf(state.operatorGear?.[equipPickSlot])) : null;
+  const statsHtml = equipped
+    ? escapeHtml(formatItemStats(nextStat))
+    : formatItemStatsCompare(nextStat, currentStat);
+  const wt = weaponTypeOf(meta.id);
+  const wtBadge = wt ? `<span class="wt-badge wt-${wt}">${weaponTypeName(meta.id)}</span>` : "";
+  const attRow = (wt === "gun" && uid) ? attachIconsRowHtml(state, uid, "pick-att-row") : "";
+  return `<div class="equip-pick-row" ${action}>
+    <img src="assets/item/${meta.id}.png" alt="" onerror="this.style.opacity='0.2'">
+    <div>
+      <div class="nm">${wtBadge}${escapeHtml(meta.name)}<span class="stars">${rarityStars(meta.rarity)}</span> <span class="lv-badge">Lv.${lv}</span>${equipped ? " 装備中" : ""}</div>
+      <div class="st">${statsHtml}</div>
+      ${skill}
+      ${attRow}
+    </div>
+    <span class="qty">${equipped ? "外す" : `×${qty}`}</span>
+  </div>`;
+}
+
+/* ===== 入手アイテム整理 ===== */
+
+function gradeColor(id) {
+  return GAME_DATA.rarities[itemRarity(id)]?.color || "#7a8290";
+}
+
+function slotHtml(entry, src, index) {
+  if (!entry) return `<div class="slot empty"></div>`;
+  const { id, qty } = entry;
+  const r = entryRarity(entry);
+  const extra = src === "parts" ? ` data-id="${id}"` : "";
+  const canDrag = qty > 0;
+  const rollTip = entry.rolls ? ` / ${formatAttachStatLine(entry)}` : "";
+  return `<div class="slot r-${r}${canDrag ? "" : " empty"}"${canDrag ? ` draggable="true"` : ""}
+    data-src="${src}" data-index="${index}"${extra}
+    title="${escapeHtml(itemName(id))} — ${rarityStars(r)}${rollTip} / 単価 ${itemValue(id)}">
+    <span class="grade">${rarityStars(r)}</span>
+    <img class="icon" src="assets/item/${id}.png" alt="" draggable="false" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+    <span class="nm">${escapeHtml(itemName(id))}</span>
+    <span class="qty">${qty}</span>
+  </div>`;
+}
+
+let itemsSortBy = "rarity";
+let itemsRarityTab = "ALL";
+
+function sortedStorageEntries() {
+  const filled = [];
+  const empty = [];
+  state.storage.forEach((e, i) => {
+    if (e) filled.push({ e, i });
+    else empty.push({ e: null, i });
+  });
+  const rank = (entry) => RARITY_RANK[entryRarity(entry)] ?? 0;
+  filled.sort((a, b) => {
+    if (itemsSortBy === "name") return itemName(a.e.id).localeCompare(itemName(b.e.id), "ja");
+    if (itemsSortBy === "qty") return b.e.qty - a.e.qty;
+    if (itemsSortBy === "value") return itemValue(b.e.id) * b.e.qty - itemValue(a.e.id) * a.e.qty;
+    return rank(b.e) - rank(a.e) || itemName(a.e.id).localeCompare(itemName(b.e.id), "ja");
+  });
+  const list = itemsRarityTab === "ALL" ? filled.concat(empty) : filled.filter(({ e }) => entryRarity(e) === itemsRarityTab);
+  return list;
+}
+
+function pendingSlotsHtml() {
+  if (!state.pending.length) {
+    return `<div style="grid-column:1/-1;font-size:12px;color:rgb(var(--color-text-muted))">未整理のアイテムはありません</div>`;
+  }
+  return state.pending.map((e, i) => slotHtml(e, "pending", i)).join("");
+}
+
+function renderItems() {
+  const used = storageUsed(state);
+  const cap = state.storageSlots;
+  const pct = cap ? Math.round((used / cap) * 100) : 0;
+  const heat = pct >= 85 ? "hot" : pct >= 60 ? "warn" : "ok";
+  const tabs = ["ALL", "SS", "S", "A", "B", "C", "D", "E"].map((t) =>
+    `<button type="button" class="${itemsRarityTab === t ? "active" : ""}" data-rtab="${t}">${t === "ALL" ? "すべて" : rarityStars(t)}</button>`
+  ).join("");
+  const sorts = [
+    ["rarity", "レア度"],
+    ["name", "名前"],
+    ["qty", "個数"],
+    ["value", "価値"],
+  ].map(([id, label]) =>
+    `<button type="button" class="${itemsSortBy === id ? "active" : ""}" data-sort="${id}">${label}</button>`
+  ).join("");
+
+  const partSlots = GAME_DATA.parts.map((p, i) => {
+    const qty = storageCount(state, p.id);
+    return slotHtml({ id: p.id, qty }, "parts", i);
+  }).join("");
+  const storageSlots = sortedStorageEntries().map(({ e, i }) => slotHtml(e, "storage", i)).join("");
+
+  return `<div class="sort-layout">
+    <div class="sort-col">
+      <h3>倉庫
+        <span class="cap-wrap">
+          <span class="cap">${used} / ${cap}</span>
+          <div class="cap-bar"><div class="cap-fill ${heat}" style="width:${pct}%"></div></div>
+        </span>
+      </h3>
+      <p class="hint">上段は基礎部品8種（各 ${state.partStack.toLocaleString()}）。下段は収容アイテム（1枠${state.itemStack}個・${cap}種類）。</p>
+      <div class="parts-row" id="grid-parts">${partSlots}</div>
+      <div class="rarity-tabs">${tabs}</div>
+      <div class="sort-tools">${sorts}</div>
+      <div class="slot-grid" id="grid-storage">${storageSlots}</div>
+    </div>
+
+    <div class="sort-col">
+      <h3>入手アイテム<span class="cap" id="pending-count">${pendingTotal(state)} 個</span></h3>
+      <p class="hint">掴んで倉庫・ゴミ箱・分解へ。巡回中もここへ追加される。</p>
+      <div class="slot-grid" id="grid-pending">${pendingSlotsHtml()}</div>
+      <div class="bulk-row">
+        <button type="button" class="btn btn-sm btn-primary" id="bulk-stash">すべて倉庫へ</button>
+        <button type="button" class="btn btn-sm btn-secondary" id="bulk-dismantle">すべて分解</button>
+        <button type="button" class="btn btn-sm btn-secondary" id="bulk-scrap">すべて廃棄</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="drop-zone trash" id="zone-trash">
+        <div class="zone-icon">🗑</div>
+        <div class="zone-name">ゴミ箱</div>
+        <div class="zone-desc">定価の 100% を予算化</div>
+      </div>
+      <div class="drop-zone scrap" id="zone-scrap">
+        <div class="zone-icon">🔧</div>
+        <div class="zone-name">分解</div>
+        <div class="zone-desc">基礎部品へ還元し専用枠へ保管</div>
+      </div>
+      <div class="sort-col">
+        <h3 style="font-size:0.85rem">保有予算</h3>
+        <div id="sort-budget" style="font-size:1.2rem;font-weight:700;color:rgb(var(--color-accent))">${state.budget.toLocaleString()}</div>
+        <div class="bulk-row" style="margin-top:10px">
+          <button type="button" class="btn btn-sm btn-secondary" data-goto="alchemy">クラフト</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+let dragPayload = null;
+
+function bindSlotEl(el) {
+  el.addEventListener("dragstart", () => {
+    dragPayload = { src: el.dataset.src, index: Number(el.dataset.index), id: el.dataset.id || null };
+    el.classList.add("dragging");
+  });
+  el.addEventListener("dragend", () => {
+    dragPayload = null;
+    el.classList.remove("dragging");
+  });
+  if (el.dataset.src === "pending") {
+    el.onclick = () => applySort(stashPending(state, Number(el.dataset.index)));
+  }
+}
+
+function bindSortEvents() {
+  document.querySelectorAll(".slot[draggable=true]").forEach(bindSlotEl);
+
+  document.querySelectorAll("[data-rtab]").forEach((btn) => {
+    btn.onclick = () => { itemsRarityTab = btn.dataset.rtab; render(); };
+  });
+  document.querySelectorAll("[data-sort]").forEach((btn) => {
+    btn.onclick = () => { itemsSortBy = btn.dataset.sort; render(); };
+  });
+
+  const gridStorage = document.getElementById("grid-storage");
+  const gridParts = document.getElementById("grid-parts");
+  for (const el of [gridStorage, gridParts]) {
+    if (!el) continue;
+    el.addEventListener("dragover", (e) => { e.preventDefault(); el.classList.add("over"); });
+    el.addEventListener("dragleave", () => el.classList.remove("over"));
+    el.addEventListener("drop", (e) => {
+      e.preventDefault();
+      el.classList.remove("over");
+      if (dragPayload?.src === "pending") applySort(stashPending(state, dragPayload.index));
+    });
+  }
+
+  bindDropZone("zone-trash", handleTrashDrop);
+  bindDropZone("zone-scrap", handleDismantleDrop);
+
+  const stash = document.getElementById("bulk-stash");
+  if (stash) stash.onclick = () => runBulk((i) => stashPending(state, i));
+  const scrap = document.getElementById("bulk-scrap");
+  if (scrap) scrap.onclick = () => confirmBulkScrap();
+  const dismantle = document.getElementById("bulk-dismantle");
+  if (dismantle) dismantle.onclick = () => confirmBulkDismantle();
+}
+
+function bindDropZone(id, handler) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener("dragover", (e) => { e.preventDefault(); el.classList.add("over"); });
+  el.addEventListener("dragleave", () => el.classList.remove("over"));
+  el.addEventListener("drop", (e) => {
+    e.preventDefault();
+    el.classList.remove("over");
+    if (dragPayload) handler(dragPayload);
+  });
+}
+
+function resolveDropItem(p) {
+  if (p.src === "pending") return state.pending[p.index] || null;
+  if (p.src === "storage") return state.storage[p.index] || null;
+  if (p.src === "parts") return { id: p.id, qty: storageCount(state, p.id) };
+  return null;
+}
+
+function handleTrashDrop(p) {
+  const item = resolveDropItem(p);
+  if (!item || !item.qty) return;
+  const prev = scrapPreview(item.id, item.qty);
+  showConfirm({
+    title: "予算化しますか",
+    body: `${prev.name} ×${prev.qty} を廃棄し、予算 +${prev.gain.toLocaleString()} を得ます。`,
+  }).then((ok) => {
+    if (!ok) return;
+    if (p.src === "pending") applySort(scrapPending(state, p.index));
+    else if (p.src === "storage") applySort(scrapStorageSlot(state, p.index));
+    else applySort(scrapPart(state, p.id, item.qty));
+  });
+}
+
+function handleDismantleDrop(p) {
+  const item = resolveDropItem(p);
+  if (!item || !item.qty) return;
+  if (isPart(item.id)) {
+    showConfirm({
+      title: "分解できません",
+      body: "基礎部品を基礎部品には分解できません。ゴミ箱で予算化するか、工廠で上位部品へ精製してください。",
+      okOnly: true,
+    });
+    return;
+  }
+  const prev = dismantlePreview(item.id, item.qty);
+  if (!prev) {
+    showConfirm({ title: "分解できません", body: `${itemName(item.id)} は分解できません。`, okOnly: true });
+    return;
+  }
+  const lines = prev.parts.map((x) => `${x.name}×${x.qty}`).join(" / ");
+  showConfirm({
+    title: "分解しますか",
+    body: `${prev.name} ×${prev.qty} を分解し、${lines} を基礎部品枠へ入れます。`,
+  }).then((ok) => {
+    if (!ok) return;
+    if (p.src === "pending") applySort(dismantlePending(state, p.index));
+    else applySort(dismantleStorageSlot(state, p.index));
+  });
+}
+
+function confirmBulkScrap() {
+  if (!state.pending.length) { toast("未整理がありません"); return; }
+  const gain = pendingScrapTotal(state);
+  showConfirm({
+    title: "すべて廃棄しますか",
+    body: `未整理 ${pendingTotal(state)} 個を廃棄し、予算 +${gain.toLocaleString()} を得ます。`,
+  }).then((ok) => {
+    if (ok) runBulk((i) => scrapPending(state, i));
+  });
+}
+
+function confirmBulkDismantle() {
+  if (!state.pending.length) { toast("未整理がありません"); return; }
+  const tot = pendingDismantleTotal(state);
+  if (!tot.parts.length) {
+    showConfirm({
+      title: "分解できません",
+      body: "分解できる収容アイテムがありません。基礎部品は分解できません。",
+      okOnly: true,
+    });
+    return;
+  }
+  const lines = tot.parts.map((x) => `${x.name}×${x.qty}`).join(" / ");
+  const skip = tot.skipped ? ` 基礎部品 ${tot.skipped} 個は対象外です。` : "";
+  showConfirm({
+    title: "すべて分解しますか",
+    body: `${lines} を基礎部品枠へ入れます。${skip}`,
+  }).then((ok) => {
+    if (ok) runBulk((i) => dismantlePending(state, i));
+  });
+}
+
+function showConfirm({ title, body, bodyHtml, okOnly = false, light = false, wide = false }) {
+  return new Promise((resolve) => {
+    const wrap = document.createElement("div");
+    wrap.className = "confirm-overlay" + (light ? " light" : "");
+    const bodyContent = bodyHtml
+      ? `<div class="confirm-body-html">${bodyHtml}</div>`
+      : `<p>${escapeHtml(body)}</p>`;
+    wrap.innerHTML = `<div class="confirm-box${wide || bodyHtml ? " wide" : ""}">
+      <h4>${escapeHtml(title)}</h4>
+      ${bodyContent}
+      <div class="confirm-actions">
+        ${okOnly ? "" : `<button type="button" class="btn btn-sm btn-secondary" data-no>いいえ</button>`}
+        <button type="button" class="btn btn-sm btn-primary" data-yes>${okOnly ? "了解" : "はい"}</button>
+      </div>
+    </div>`;
+    document.body.appendChild(wrap);
+    const done = (v) => { wrap.remove(); resolve(v); };
+    wrap.querySelector("[data-yes]").onclick = () => done(true);
+    wrap.querySelector("[data-no]")?.addEventListener("click", () => done(false));
+  });
+}
+
+const ENHANCE_STAT_KEYS = [
+  ["hp", "HP"], ["atk", "物攻"], ["anm", "異能"],
+  ["def", "防御"], ["spd", "機動"], ["luck", "運"],
+  ["crit", "CRIT"], ["eva", "回避"],
+];
+
+function enhanceStatTableHtml(curStat, nextStat) {
+  const rows = [];
+  rows.push(`<span class="h"></span><span class="h">現在</span><span class="h">強化後</span>`);
+  for (const [k, label] of ENHANCE_STAT_KEYS) {
+    const a = curStat[k] || 0;
+    const b = nextStat[k] || 0;
+    if (!a && !b) continue;
+    const up = b > a ? " up" : "";
+    rows.push(`<span>${label}</span><span>${formatStatValue(k, a)}</span><span class="${up.trim()}">${formatStatValue(k, b)}</span>`);
+  }
+  return rows.join("");
+}
+
+function openEnhanceOverlay(slotId) {
+  const piece = gearPieceOf(state.operatorGear?.[slotId]);
+  if (!piece) { toast("先に装備してください"); return; }
+  const meta = itemMeta(piece.id);
+  const maxLv = GAME_DATA.gearEnhance.maxLv;
+  const remain = maxLv - piece.lv;
+  document.getElementById("gear-enhance-overlay")?.remove();
+  const wrap = document.createElement("div");
+  wrap.className = "confirm-overlay";
+  wrap.id = "gear-enhance-overlay";
+  wrap.innerHTML = `<div class="confirm-box enhance-box">
+    <button type="button" class="advice-close" data-close>×</button>
+    <div class="enhance-head">
+      <img src="assets/item/${piece.id}.png" alt="" onerror="this.style.opacity='0.2'">
+      <div>
+        <h4>${escapeHtml(meta?.name || piece.id)}</h4>
+        <div class="sub">Lv.${piece.lv} / ${maxLv}　${rarityStars(meta?.rarity)}　+${Math.round((GAME_DATA.gearEnhance.statPerLv || 0) * 1000) / 10}%/Lv</div>
+      </div>
+    </div>
+    ${remain < 1
+      ? `<p>強化上限です。</p>`
+      : `<div class="enhance-slider-row">
+          <span class="label">レベル増加</span>
+          <input type="range" min="1" max="${remain}" value="1" id="enhance-slider">
+          <b id="enhance-delta">+1</b>
+        </div>
+        <div class="sub" id="enhance-lvline">Lv.${piece.lv} → ${piece.lv + 1}</div>
+        <div class="enhance-stats" id="enhance-stats"></div>
+        <div class="confirm-craft-label">必要資材（暫定）</div>
+        <div class="confirm-craft-mats" id="enhance-mats"></div>
+        <div class="confirm-craft-cost" id="enhance-cost"></div>
+        <div class="confirm-actions">
+          <button type="button" class="btn btn-sm btn-secondary" data-close>閉じる</button>
+          <button type="button" class="btn btn-sm btn-accent" id="enhance-go">強化</button>
+        </div>`}
+  </div>`;
+  document.body.appendChild(wrap);
+  const close = () => wrap.remove();
+  wrap.querySelectorAll("[data-close]").forEach((b) => { b.onclick = close; });
+  wrap.addEventListener("click", (e) => { if (e.target === wrap) close(); });
+  if (remain < 1) return;
+
+  const slider = wrap.querySelector("#enhance-slider");
+  const refresh = () => {
+    const add = Number(slider.value) || 1;
+    const cost = gearEnhanceCostRange(piece.lv, piece.lv + add);
+    const cur = pieceCombatStat(piece);
+    const preview = pieceCombatStat({ ...piece, lv: cost.toLv });
+    wrap.querySelector("#enhance-delta").textContent = `+${add}`;
+    wrap.querySelector("#enhance-lvline").textContent = `Lv.${piece.lv} → ${cost.toLv}`;
+    wrap.querySelector("#enhance-stats").innerHTML = enhanceStatTableHtml(cur, preview);
+    wrap.querySelector("#enhance-mats").innerHTML = Object.entries(cost.mats)
+      .map(([id, n]) => {
+        const have = storageCount(state, id);
+        const ok = have >= n;
+        return `<div class="confirm-craft-mat ${ok ? "ok" : "lack"}">
+          <img src="assets/item/${id}.png" alt="" onerror="this.style.opacity='0.25'">
+          <span>${escapeHtml(itemName(id))} ×${n}</span>
+          <small>所持 ${have}</small>
+        </div>`;
+      }).join("") || `<div class="confirm-craft-mat">材料なし</div>`;
+    const budgetOk = state.budget >= cost.budget;
+    const costEl = wrap.querySelector("#enhance-cost");
+    costEl.textContent = `予算 ${cost.budget.toLocaleString()}（所持 ${state.budget.toLocaleString()}）`;
+    costEl.classList.toggle("lack", !budgetOk);
+    const lack = materialsLack(state, cost.mats);
+    wrap.querySelector("#enhance-go").disabled = !budgetOk || lack.length > 0;
+  };
+  slider.oninput = refresh;
+  wrap.querySelector("#enhance-go").onclick = () => {
+    const r = enhanceOperatorGear(state, slotId, Number(slider.value) || 1);
+    toast(r.msg);
+    if (r.ok) {
+      saveGame(state);
+      close();
+      render();
+    } else refresh();
+  };
+  refresh();
+}
+
+function attachPadHtml(slotDef, equipped, active) {
+  const inst = attachInstOf(equipped);
+  const meta = inst ? itemMeta(inst.id) : null;
+  const rar = inst ? ` r-${inst.rarity}` : "";
+  const on = active ? " active" : "";
+  const inner = meta
+    ? `<img src="assets/item/${inst.id}.png" alt="" onerror="this.style.opacity='0.2'"><span class="lab">${escapeHtml(slotDef.name)}</span><span class="nm">${escapeHtml(meta.name)}</span>`
+    : `<span class="plus">+</span><span class="lab">${escapeHtml(slotDef.name)}</span>`;
+  return `<button type="button" class="attach-pad${rar}${on}" data-area="${slotDef.id}" data-attach-kind="${slotDef.id}">${inner}</button>`;
+}
+
+function filteredAttachCandidates(state, attachSlotId) {
+  let list = attachCandidates(state, attachSlotId);
+  if (attachFilterRarity !== "ALL") {
+    list = list.filter((c) => c.rarity === attachFilterRarity);
+  }
+  list.sort((a, b) => {
+    if (attachFilterSort === "name") return a.meta.name.localeCompare(b.meta.name, "ja");
+    if (attachFilterSort === "atk" || attachFilterSort === "luck" || attachFilterSort === "def" || attachFilterSort === "spd") {
+      const diff = (b.rolls?.[attachFilterSort] || 0) - (a.rolls?.[attachFilterSort] || 0);
+      if (diff) return diff;
+    }
+    const rankDiff = (RARITY_RANK[b.rarity] ?? 0) - (RARITY_RANK[a.rarity] ?? 0);
+    if (rankDiff) return rankDiff;
+    return a.meta.name.localeCompare(b.meta.name, "ja");
+  });
+  return list;
+}
+
+function openAttachOverlay(uid, pickKind0) {
+  const piece = findWeaponPieceByUid(state, uid);
+  if (!piece) { toast("武器が見つかりません"); return; }
+  if (weaponTypeOf(piece.id) !== "gun") { toast("刃にはアタッチメントを装着できません"); return; }
+  document.getElementById("gear-attach-overlay")?.remove();
+  attachFilterRarity = "ALL";
+  attachFilterSort = "rarity";
+  const isEquipped = gearPieceOf(state.operatorGear?.mainWeapon)?.uid === uid;
+  const wrap = document.createElement("div");
+  wrap.className = "confirm-overlay";
+  wrap.id = "gear-attach-overlay";
+
+  const paint = (pickKind) => {
+    const loadout = loadoutOf(state, uid);
+    const stats = flattenGearStat(pieceCombatStatFull(state, piece));
+    const statRows = ENHANCE_STAT_KEYS.map(([k, label]) => {
+      const v = stats[k] || 0;
+      if (!v) return "";
+      return `<div class="row"><span>${label}</span><span class="up">${formatStatValue(k, v)}</span></div>`;
+    }).join("");
+    const pads = GAME_DATA.attachSlots.map((s) => attachPadHtml(s, loadout[s.id], pickKind === s.id)).join("");
+    let pick = "";
+    if (pickKind) {
+      const slotDef = GAME_DATA.attachSlots.find((s) => s.id === pickKind);
+      const equippedAtt = attachInstOf(loadout[pickKind]);
+      const equippedKey = attachInstKey(loadout[pickKind]);
+      const cands = filteredAttachCandidates(state, pickKind);
+      const rarityTabs = ["ALL", "SS", "S", "A", "B", "C", "D", "E"].map((t) =>
+        `<button type="button" class="${attachFilterRarity === t ? "active" : ""}" data-att-rtab="${t}">${t === "ALL" ? "すべて" : rarityStars(t)}</button>`
+      ).join("");
+      const sorts = [
+        ["rarity", "★"],
+        ["atk", "物攻"],
+        ["luck", "運"],
+        ["def", "防御"],
+        ["spd", "機動"],
+        ["name", "名前"],
+      ].map(([id, label]) =>
+        `<button type="button" class="${attachFilterSort === id ? "active" : ""}" data-att-sort="${id}">${label}</button>`
+      ).join("");
+      const rows = cands.map((c) => {
+        const on = equippedKey && attachInstKey(c) === equippedKey;
+        return `<button type="button" class="equip-pick-row r-${c.rarity}${on ? " active" : ""}" data-put-index="${c.index}">
+          <img src="assets/item/${c.id}.png" alt="" onerror="this.style.opacity='0.2'">
+          <div>
+            <div class="nm">${escapeHtml(c.meta.name)}<span class="stars">${rarityStars(c.rarity)}</span>${on ? " 装着中" : ""}</div>
+            <div class="st">${escapeHtml(formatAttachStatLine(c))}</div>
+          </div>
+        </button>`;
+      }).join("");
+      pick = `<div class="attach-pick">
+        <h5>${escapeHtml(slotDef?.name || pickKind)} — 装着するアタッチメント</h5>
+        <div class="rarity-tabs">${rarityTabs}</div>
+        <div class="sort-tools">${sorts}</div>
+        ${equippedAtt ? `<button type="button" class="btn btn-sm btn-secondary" data-detach>外す（${escapeHtml(itemName(equippedAtt.id))} ${rarityStars(equippedAtt.rarity)}）</button>` : ""}
+        ${rows || `<p style="font-size:12px;color:rgb(var(--color-text-muted))">条件に合うパーツがありません。工廠で製作するかフィルタを緩めてください。</p>`}
+      </div>`;
+    }
+    wrap.innerHTML = `<div class="attach-box">
+      <button type="button" class="advice-close" data-close>×</button>
+      <h4 style="margin:0 0 12px">${escapeHtml(itemName(piece.id))}${isEquipped ? "（装備中）" : ""} — アタッチメント</h4>
+      <div class="attach-layout">
+        <div class="attach-stats-col">
+          <div class="label">ステータス</div>
+          ${statRows || `<div class="row"><span>補正なし</span></div>`}
+        </div>
+        <div class="attach-stage">
+          <div class="attach-gun"><img src="assets/item/${piece.id}.png" alt=""></div>
+          ${pads}
+        </div>
+      </div>
+      ${pick}
+    </div>`;
+    wrap.querySelectorAll("[data-close]").forEach((b) => {
+      b.onclick = () => { wrap.remove(); render(); };
+    });
+    wrap.querySelectorAll("[data-attach-kind]").forEach((btn) => {
+      btn.onclick = (e) => { e.stopPropagation(); paint(btn.dataset.attachKind); };
+    });
+    wrap.querySelectorAll("[data-att-rtab]").forEach((btn) => {
+      btn.onclick = (e) => { e.stopPropagation(); attachFilterRarity = btn.dataset.attRtab; paint(pickKind); };
+    });
+    wrap.querySelectorAll("[data-att-sort]").forEach((btn) => {
+      btn.onclick = (e) => { e.stopPropagation(); attachFilterSort = btn.dataset.attSort; paint(pickKind); };
+    });
+    wrap.querySelectorAll("[data-put-index]").forEach((btn) => {
+      btn.onclick = () => {
+        const r = attachToWeapon(state, uid, pickKind, Number(btn.dataset.putIndex));
+        toast(r.msg);
+        if (r.ok) paint(pickKind);
+      };
+    });
+    wrap.querySelector("[data-detach]")?.addEventListener("click", () => {
+      const r = detachFromWeapon(state, uid, pickKind);
+      toast(r.msg);
+      if (r.ok) paint(pickKind);
+    });
+  };
+
+  wrap.addEventListener("click", (e) => { if (e.target === wrap) { wrap.remove(); render(); } });
+  document.body.appendChild(wrap);
+  paint(pickKind0 || null);
+}
+
+function runBulk(fn) {
+  let done = 0;
+  let i = 0;
+  let guard = 0;
+  while (i < state.pending.length && guard++ < 1000) {
+    const before = state.pending.length;
+    if (fn(i)?.ok) done++;
+    if (state.pending.length === before) i++;
+  }
+  toast(done ? `${done} 種類を処理しました` : "処理できるものがありません");
+  saveGame(state);
+  render();
+}
+
+function applySort(result) {
+  if (!result) return;
+  toast(result.msg);
+  saveGame(state);
+  render();
+}
+
+/** 整理画面を開いたまま入手が増えたとき、ドラッグ中でなければ入手欄だけ更新する */
+function refreshPendingLive() {
+  if (currentView !== "items") return;
+  if (dragPayload) return;
+  const grid = document.getElementById("grid-pending");
+  const count = document.getElementById("pending-count");
+  if (!grid) return;
+  grid.innerHTML = pendingSlotsHtml();
+  grid.querySelectorAll(".slot[draggable=true]").forEach(bindSlotEl);
+  if (count) count.textContent = `${pendingTotal(state)} 個`;
+}
+
+function renderProfile() {
+  const p = state.profile || {};
+  return `<div class="panel">
+    <h2>プロフィール設定</h2>
+    <div style="display:grid;gap:12px;max-width:400px">
+      <label style="font-size:12px;color:rgb(var(--color-text-muted))">作戦コードネーム
+        <input type="text" id="profile-codename" value="${escapeHtml(p.codename || "")}" style="width:100%;margin-top:4px">
+      </label>
+      <label style="font-size:12px;color:rgb(var(--color-text-muted))">職務
+        <input type="text" id="profile-title" value="${escapeHtml(p.title || "")}" style="width:100%;margin-top:4px">
+      </label>
+      <label style="font-size:12px;color:rgb(var(--color-text-muted))">クリアランス Level
+        <input type="number" id="profile-clearance" min="1" max="5" value="${p.clearance || 2}" style="width:100%;margin-top:4px">
+      </label>
+      <button type="button" class="btn btn-primary" id="btn-save-profile">保存</button>
+    </div>
+    <div style="margin-top:16px;font-size:12px;color:rgb(var(--color-text-muted))">
+      <p>収容体: ${state.units.length} / 図鑑: ${state.discovered.length}/${Object.keys(GAME_DATA.catalog).length} / 最深: ${state.maxFloor}</p>
+    </div>
+  </div>`;
+}
+
+function renderHelp() {
+  return `<div class="panel"><h2>ヘルプ</h2>
+    <ol style="font-size:13px;line-height:1.9;padding-left:20px;color:rgb(var(--color-text-muted))">
+      <li>司令室の MAP で日本支部サイト（生物・非生物など）を選び、展開チーム（1光点）が暗い区画を照らして制圧率を MAX にする。</li>
+      <li><strong>BOSS挑戦</strong>で収容違反体が MAP に出現する。接触すると交戦画面が再生され、終了後に入手と経験値のリザルトを表示。勝利で次の区画へ自動進出する。</li>
+      <li>収集した部品と収容品は<strong>入手アイテム整理</strong>で倉庫へ入れるか、売却／分解する。上位クラフトと拠点拡張は収容品を残す必要がある。装備強化は予算と基礎部品。</li>
+      <li><strong>工廠</strong>で部品と収容品から装備・アタッチメントを作り、<strong>拠点 → 装備</strong>で主人公に着せる。装備は個体ごとに強化（最大Lv.100、予算＋基礎部品）。メインウエポンのアタッチは個体ごとにレアとステ振れ幅が付く。</li>
+      <li><strong>戦術 → 編成</strong>で主人公＋収容個体5体（計6）を揃えてから探索。</li>
+      <li><strong>戦術スキル → セントリーガン</strong>で解明済みの室内に砲台を置き、接近した敵を自動撃破する（最大2、砲台クリックで削除）。</li>
+      <li><strong>戦術 → 収容物体合成実験</strong>で収容体を親A／親Bへドラッグして合成。Rev とスキルを継承し、レシピがあれば交差種になる。</li>
+      <li><strong>拠点強化</strong>のノードをクリックすると右側に詳細が出る。拡張は予算に加え基礎部品と収容品を消費する。</li>
+      <li><strong>DB → 収容個体</strong>でカタログ化・再分類。</li>
+      <li><strong>DB → 異能図鑑</strong>でポートレートカードを閲覧。クラス／発見状態／原種・交差種を絞る。</li>
+      <li>左の<strong>チャット</strong>でサイト内通信（ローカル保存）。</li>
+    </ol>
+  </div>`;
+}
+
+function renderBoard() {
+  const posts = [
+    { user: "O5-█", title: "Thaumiel運用方針の再確認", body: "異常を戦力化する際は収容手順を厳守せよ。", date: "2026-08-10" },
+    { user: "研究主任", title: "新規区画が開放", body: `深度 ${state.maxFloor} まで探索可能。違反リスクに注意。`, date: "2026-08-12" },
+    { user: "警備隊", title: "許可証配給", body: "2分ごとに1枚回復。計画的に探索せよ。", date: "2026-08-13" },
+  ];
+  return `<div class="panel"><h2>掲示板</h2>
+    ${posts.map((p) => `<div style="padding:12px 0;border-bottom:1px solid rgb(var(--color-frame))">
+      <div style="font-weight:700">${p.title}</div>
+      <div style="font-size:11px;color:rgb(var(--color-text-muted));margin:4px 0">${p.user} — ${p.date}</div>
+      <div style="font-size:13px;color:rgb(var(--color-text-muted))">${p.body}</div>
+    </div>`).join("")}
+  </div>`;
+}
+
+function renderRoster() {
+  const cards = state.units.map((u) => unitCardHtml(u, {
+    selected: selectedUnits.includes(u.uid),
+    onclick: `toggleSelect(${u.uid})`,
+  })).join("");
+  const catalogOpts = state.discovered.map((id) => {
+    const c = GAME_DATA.catalog[id];
+    return `<option value="${id}">${c.scp} ${c.name}</option>`;
+  }).join("");
+  return `<div class="panel">
+    <h2>収容個体 (${state.units.length}体)</h2>
+    <div class="unit-grid">${cards}</div>
+    <div class="actions">
+      <button type="button" class="btn btn-secondary" onclick="reclassSelected()">再分類</button>
+      <button type="button" class="btn btn-secondary" onclick="equipSelected()">アーティファクト装備</button>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>カタログ化</h2>
+    <select id="catalog-select">${catalogOpts}</select>
+    <div class="actions"><button type="button" class="btn btn-accent" id="btn-catalog">素材1個で生成</button></div>
+  </div>`;
+}
+
+function xpBarHtml(unit) {
+  const need = xpForLevel(unit.level);
+  const have = unit.xp || 0;
+  const pct = need > 0 ? Math.min(100, Math.round((have / need) * 100)) : 0;
+  return `<div class="meta">次Lv ${have}/${need}</div><div class="xp-bar"><div class="xp-fill" style="width:${pct}%"></div></div>`;
+}
+
+function classPillsHtml(units) {
+  const counts = {};
+  for (const u of units) {
+    const cls = GAME_DATA.catalog[u.catalogId].class;
+    counts[cls] = (counts[cls] || 0) + 1;
+  }
+  return Object.keys(GAME_DATA.classColors).map((cls) => {
+    const n = counts[cls] || 0;
+    if (!n) return "";
+    const col = classColor(cls);
+    return `<span class="class-pill" style="color:${col};border-color:${col}66">${cls} ${n}</span>`;
+  }).join("");
+}
+
+function renderSquad() {
+  const squadUnits = getSquadUnits(state);
+  const power = calcSquadPower(state);
+  const profile = state.profile || { codename: "司令官", title: "収容担当" };
+  const opStats = calcOperatorStats(state);
+  const cells = [];
+
+  cells.push(`<div class="squad-cell filled operator-slot" onclick="goView('equipment')">
+    <div class="slot-idx">枠 1 — 主人公（クリックで装備）</div>
+    <div class="op-avatar">${escapeHtml((profile.codename || "OP").slice(0, 2))}</div>
+    <div class="name" style="font-weight:700">${escapeHtml(profile.codename || "司令官")}</div>
+    <div class="meta" style="font-size:11px;color:rgb(var(--color-text-muted))">${escapeHtml(profile.title || "収容担当")}</div>
+    <div class="stats" style="font-size:10px;margin-top:6px">
+      <span>HP ${opStats.hp}</span><span>物攻 ${opStats.atk}</span><span>防御 ${opStats.def}</span>
+    </div>
+  </div>`);
+
+  for (let i = 0; i < 5; i++) {
+    const uid = state.squad[i];
+    const unit = uid ? state.units.find((u) => u.uid === uid) : null;
+    const slotNum = i + 2;
+    if (unit) {
+      cells.push(`<div class="squad-cell filled" onclick="removeSquad(${slotNum})">
+        <div class="slot-idx">枠 ${slotNum} — クリックで外す</div>
+        ${unitCardHtml(unit, { extra: xpBarHtml(unit) })}
+      </div>`);
+    } else {
+      cells.push(`<div class="squad-cell">
+        <div class="slot-idx">枠 ${slotNum}</div>
+        <div class="empty-slot">空き<br>下のベンチから追加</div>
+      </div>`);
+    }
+  }
+  const bench = state.units.filter((u) => !state.squad.includes(u.uid));
+  const warn = squadUnits.length < 5
+    ? `<span class="warn">収容枠 空き ${5 - squadUnits.length} — BOSSは主人公+5体必須</span>`
+    : `<span>編成完了（主人公+5）</span>`;
+  return `<div class="panel">
+    <h2>編成（主人公 + ${squadUnits.length}/5）</h2>
+    <div class="squad-summary">
+      <strong>戦力 ${power.toLocaleString()}</strong>
+      ${classPillsHtml(squadUnits)}
+      ${warn}
+    </div>
+    <p style="font-size:11px;color:rgb(var(--color-text-muted));margin-bottom:8px">枠1は主人公（常時参加）。枠2〜6は収容個体。ベンチをクリックで空き枠へ入れる。</p>
+    <div class="squad-board">${cells.join("")}</div>
+    <h3>ベンチ (${bench.length})</h3>
+    <div class="unit-grid">${bench.map((u) => unitCardHtml(u, { onclick: `addSquad(${u.uid})`, extra: xpBarHtml(u) })).join("") || "<p>全員編成中</p>"}</div>
+  </div>`;
+}
+
+function fusionBoxHtml(label, unit, emptyText, slot) {
+  const slotAttr = ` data-cross-slot="${slot}"`;
+  if (!unit) {
+    return `<div class="fusion-box"${slotAttr}><div class="lab">${label}</div><div class="empty-slot">${emptyText}</div></div>`;
+  }
+  return `<div class="fusion-box"${slotAttr}><div class="lab">${label}</div>${unitCardHtml(unit, { extra: xpBarHtml(unit), draggable: true })}</div>`;
+}
+
+function renderCross() {
+  const parentA = crossParentA ? state.units.find((u) => u.uid === crossParentA) : null;
+  const parentB = crossParentB ? state.units.find((u) => u.uid === crossParentB) : null;
+  const preview = parentA && parentB ? previewCross(state, parentA.uid, parentB.uid) : null;
+  let resultHtml = `<div class="fusion-box"><div class="lab">結果</div><div class="empty-slot">親を2体選ぶ</div></div>`;
+  if (preview) {
+    const cat = GAME_DATA.catalog[preview.childCatalogId];
+    const kind = preview.recipe ? "レシピ交差" : "同系統の強化（親A側）";
+    resultHtml = `<div class="fusion-box">
+      <div class="lab">結果 — ${kind}</div>
+      ${placeholderBadge({ catalogId: preview.childCatalogId })}
+      <span class="badge" style="background:${classColor(cat.class)}33;color:${classColor(cat.class)}">${cat.class}</span>
+      <div class="name">${cat.scp}</div>
+      <div class="name" style="font-size:12px;color:rgb(var(--color-text-muted))">${cat.name}</div>
+      <div class="meta">Rev.${preview.childRev}（+${preview.revGain}）</div>
+      <p style="font-size:11px;color:rgb(var(--color-text-muted));margin-top:6px">${escapeHtml(cat.note)}</p>
+    </div>`;
+  }
+  const list = filteredCrossUnits(state);
+  const cards = list.length
+    ? list.map((u) => unitCardHtml(u, {
+      selected: u.uid === crossParentA || u.uid === crossParentB,
+      extra: xpBarHtml(u),
+      draggable: true,
+    })).join("")
+    : `<div class="craft-empty">条件に合う収容体がいません。フィルタを緩めてください。</div>`;
+  const classTabs = ["ALL", "Safe", "Euclid", "Keter", "Thaumiel"].map((t) =>
+    `<button type="button" class="${crossClass === t ? "active" : ""}" data-cross-class="${t}">${t === "ALL" ? "すべて" : t}</button>`
+  ).join("");
+  const kindTabs = [
+    ["ALL", "すべて"], ["base", "原種"], ["hybrid", "交差種"],
+  ].map(([id, label]) =>
+    `<button type="button" class="${crossKind === id ? "active" : ""}" data-cross-kind="${id}">${label}</button>`
+  ).join("");
+  const sorts = [
+    ["rev", "Rev"], ["level", "Lv"], ["rank", "Rank"], ["scp", "番号"],
+  ].map(([id, label]) =>
+    `<button type="button" class="${crossSort === id ? "active" : ""}" data-cross-sort="${id}">${label}</button>`
+  ).join("");
+  return `<div class="panel">
+    <h2>収容物体合成実験</h2>
+    <p style="font-size:12px;color:rgb(var(--color-text-muted))">下の収容体を親A／親Bへドラッグ＆ドロップする。専用レシピなら交差種、それ以外は親Aの系統を Rev 強化する。親は消費される。</p>
+    <div class="fusion-row">
+      ${fusionBoxHtml("親A", parentA, "ここにドロップ", "A")}
+      <div class="fusion-op">×</div>
+      ${fusionBoxHtml("親B", parentB, "ここにドロップ", "B")}
+      <div class="fusion-op">→</div>
+      ${resultHtml}
+    </div>
+    <div class="actions">
+      <button type="button" class="btn btn-primary" id="btn-cross" ${!parentA || !parentB ? "disabled" : ""}>実行</button>
+      <button type="button" class="btn btn-secondary" id="btn-cross-reset">リセット</button>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>収容体から選ぶ <span style="font-weight:400;font-size:12px;color:rgb(var(--color-text-muted))">${list.length}/${state.units.length}</span></h2>
+    <div class="craft-toolbar">
+      <span class="label">クラス</span>
+      <div class="sort-tools" style="margin:0">${classTabs}</div>
+    </div>
+    <div class="craft-toolbar">
+      <span class="label">種別</span>
+      <div class="sort-tools" style="margin:0">${kindTabs}</div>
+    </div>
+    <div class="craft-toolbar">
+      <span class="label">並び替え</span>
+      <div class="sort-tools" style="margin:0">${sorts}</div>
+    </div>
+    <div class="unit-grid" id="cross-pick">${cards}</div>
+  </div>`;
+}
+
+function filteredCrossUnits(state) {
+  let list = state.units.slice();
+  list = list.filter((u) => {
+    const cat = GAME_DATA.catalog[u.catalogId];
+    if (!cat) return false;
+    if (crossClass !== "ALL" && cat.class !== crossClass) return false;
+    if (crossKind === "base" && cat.hybrid) return false;
+    if (crossKind === "hybrid" && !cat.hybrid) return false;
+    return true;
+  });
+  list.sort((a, b) => {
+    const ca = GAME_DATA.catalog[a.catalogId];
+    const cb = GAME_DATA.catalog[b.catalogId];
+    if (crossSort === "level") return b.level - a.level || ca.scp.localeCompare(cb.scp);
+    if (crossSort === "rank") return (cb.rank || 0) - (ca.rank || 0) || ca.scp.localeCompare(cb.scp);
+    if (crossSort === "scp") return ca.scp.localeCompare(cb.scp, "ja");
+    return b.rev - a.rev || b.level - a.level || ca.scp.localeCompare(cb.scp);
+  });
+  return list;
+}
+
+function renderCodex() {
+  const ids = Object.keys(GAME_DATA.catalog).filter((id) => {
+    const c = GAME_DATA.catalog[id];
+    const found = state.discovered.includes(id);
+    if (codexClass !== "ALL" && c.class !== codexClass) return false;
+    if (codexFound === "found" && !found) return false;
+    if (codexFound === "missing" && found) return false;
+    if (codexKind === "base" && c.hybrid) return false;
+    if (codexKind === "hybrid" && !c.hybrid) return false;
+    return true;
+  });
+  ids.sort((a, b) => {
+    const ca = GAME_DATA.catalog[a];
+    const cb = GAME_DATA.catalog[b];
+    if (codexSort === "class") return ca.class.localeCompare(cb.class) || ca.scp.localeCompare(cb.scp);
+    if (codexSort === "rank") return (cb.rank || 0) - (ca.rank || 0) || ca.scp.localeCompare(cb.scp);
+    return ca.scp.localeCompare(cb.scp, "ja");
+  });
+  const classTabs = ["ALL", "Safe", "Euclid", "Keter", "Thaumiel"].map((t) =>
+    `<button type="button" class="${codexClass === t ? "active" : ""}" data-codex-class="${t}">${t === "ALL" ? "すべて" : t}</button>`
+  ).join("");
+  const foundTabs = [
+    ["ALL", "すべて"], ["found", "発見済"], ["missing", "未発見"],
+  ].map(([id, label]) =>
+    `<button type="button" class="${codexFound === id ? "active" : ""}" data-codex-found="${id}">${label}</button>`
+  ).join("");
+  const kindTabs = [
+    ["ALL", "すべて"], ["base", "原種"], ["hybrid", "交差種"],
+  ].map(([id, label]) =>
+    `<button type="button" class="${codexKind === id ? "active" : ""}" data-codex-kind="${id}">${label}</button>`
+  ).join("");
+  const sorts = [
+    ["scp", "番号"], ["class", "クラス"], ["rank", "ランク"],
+  ].map(([id, label]) =>
+    `<button type="button" class="${codexSort === id ? "active" : ""}" data-codex-sort="${id}">${label}</button>`
+  ).join("");
+  const cards = ids.map((id) => {
+    const c = GAME_DATA.catalog[id];
+    const found = state.discovered.includes(id);
+    const owned = state.units.filter((u) => u.catalogId === id).length;
+    const skills = c.skills.map((sid) => GAME_DATA.skills[sid]?.name).filter(Boolean).join(" / ");
+    return `<article class="codex-card">
+      ${catalogArtHtml(id)}
+      <span class="stamp${found ? " ok" : ""}">${found ? "発見済" : "未発見"}</span>
+      <div class="body">
+        <span class="badge" style="background:${classColor(c.class)}33;color:${classColor(c.class)}">${c.class}</span>
+        <div class="scp">${escapeHtml(c.scp)}</div>
+        <div class="nm">${escapeHtml(c.name)}</div>
+        <div class="meta">Rank ${c.rank || "—"}${c.hybrid ? " · 交差種" : ""}</div>
+        <p class="look">${escapeHtml(c.look || c.note)}</p>
+        <div class="sk">${escapeHtml(skills)}</div>
+        ${owned ? `<div class="own">収容中 ×${owned}</div>` : ""}
+      </div>
+    </article>`;
+  }).join("");
+  const total = Object.keys(GAME_DATA.catalog).length;
+  return `<div class="panel">
+    <h2>異能図鑑 ${total}種</h2>
+    <p style="font-size:11px;color:rgb(var(--color-text-muted));margin:-4px 0 10px">発見 ${state.discovered.length} / 収録 ${total}　表示 ${ids.length}</p>
+    <div class="craft-toolbar">
+      <span class="label">クラス</span>
+      <div class="sort-tools" style="margin:0">${classTabs}</div>
+    </div>
+    <div class="craft-toolbar">
+      <span class="label">発見</span>
+      <div class="sort-tools" style="margin:0">${foundTabs}</div>
+    </div>
+    <div class="craft-toolbar">
+      <span class="label">種別</span>
+      <div class="sort-tools" style="margin:0">${kindTabs}</div>
+    </div>
+    <div class="craft-toolbar">
+      <span class="label">並び替え</span>
+      <div class="sort-tools" style="margin:0">${sorts}</div>
+    </div>
+    <div class="codex-grid">${cards || `<div class="craft-empty">該当なし</div>`}</div>
+  </div>`;
+}
+
+function renderChamber() {
+  const need = GAME_DATA.chamberUnlockCount;
+  if (state.units.length < need) {
+    const pct = Math.round((state.units.length / need) * 100);
+    return `<div class="panel">
+      <h2>自動試験槽 — 未解放</h2>
+      <p style="font-size:13px;color:rgb(var(--color-text-muted))">収容体 ${need} 体以上で解放（現在 ${state.units.length}）。収容物体合成実験やカタログ化で増やす。</p>
+      <div class="meter"><div class="meter-head"><span>解放まで</span><span>${state.units.length} / ${need}</span></div>
+      <div class="meter-bar"><div class="meter-fill teal" style="width:${pct}%"></div></div></div>
+    </div>`;
+  }
+  const maxSlots = state.chamberMax || 2;
+  const inC = state.chamber.map((id) => state.units.find((u) => u.uid === id)).filter(Boolean);
+  const bench = state.units.filter((u) => !state.chamber.includes(u.uid) && !state.squad.includes(u.uid));
+  const busy = state.units.filter((u) => state.squad.includes(u.uid));
+  const xpTick = 20 + state.siteLevel * 5;
+  const cells = [];
+  for (let i = 0; i < maxSlots; i++) {
+    const unit = inC[i];
+    if (unit) {
+      cells.push(`<div class="squad-cell filled" onclick="removeChamber(${unit.uid})">
+        <div class="slot-idx">槽 ${i + 1} — クリックで降ろす</div>
+        ${unitCardHtml(unit, { extra: xpBarHtml(unit) })}
+      </div>`);
+    } else {
+      cells.push(`<div class="squad-cell">
+        <div class="slot-idx">槽 ${i + 1}</div>
+        <div class="empty-slot">空き<br>下から追加</div>
+      </div>`);
+    }
+  }
+  return `<div class="panel">
+    <h2>自動試験槽 (${inC.length}/${maxSlots})</h2>
+    <p style="font-size:12px;color:rgb(var(--color-text-muted))">BOSS勝利のたびに槽内の収容体へ XP +${xpTick}（Site Lv.${state.siteLevel}）。編成中の個体は入れられない。拠点強化で槽数が増える。</p>
+    <div class="squad-board">${cells.join("")}</div>
+  </div>
+  <div class="panel">
+    <h3>追加できる個体 (${bench.length})</h3>
+    <div class="unit-grid">${bench.map((u) => unitCardHtml(u, { onclick: `addChamber(${u.uid})`, extra: xpBarHtml(u) })).join("") || "<p>追加できる個体がいない（全員が編成中か槽に入っている）</p>"}</div>
+    ${busy.length ? `<h3 style="margin-top:12px">編成中のため追加不可 (${busy.length})</h3><div class="unit-grid">${busy.map((u) => unitCardHtml(u, { extra: "<div class='meta'>編成中</div>" })).join("")}</div>` : ""}
+  </div>`;
+}
+
+function craftAffordable(state, meta) {
+  const cost = meta.craftCost || 0;
+  if (state.budget < cost) return false;
+  return Object.entries(meta.craft).every(([id, n]) => storageCount(state, id) >= n);
+}
+
+function filteredCraftableList(state) {
+  let list = craftableList();
+  if (alchemyKindTab !== "ALL") list = list.filter((m) => m.kind === alchemyKindTab);
+  if (alchemyRarityTab !== "ALL") list = list.filter((m) => m.rarity === alchemyRarityTab);
+  if (alchemyCraftableOnly) list = list.filter((m) => craftAffordable(state, m));
+  const rank = (r) => RARITY_RANK[r] ?? 0;
+  list.sort((a, b) => {
+    if (alchemySortBy === "name") return a.name.localeCompare(b.name, "ja");
+    if (alchemySortBy === "cost") return (a.craftCost || 0) - (b.craftCost || 0);
+    if (alchemySortBy === "stock") return storageCount(state, b.id) - storageCount(state, a.id);
+    const rankDiff = rank(b.rarity) - rank(a.rarity);
+    return rankDiff || a.name.localeCompare(b.name, "ja");
+  });
+  return list;
+}
+
+function craftMatChip(state, id, need) {
+  const have = storageCount(state, id);
+  const ok = have >= need;
+  return `<span class="craft-mat ${ok ? "ok" : "lack"}" title="${escapeHtml(itemName(id))}">
+    <img src="assets/item/${id}.png" alt="" onerror="this.style.opacity='0.25'">
+    <span>${escapeHtml(itemName(id))}×${need}<small>(${have})</small></span>
+  </span>`;
+}
+
+function craftConfirmMatsHtml(state, meta, qty) {
+  return Object.entries(meta.craft).map(([id, n]) => {
+    const need = n * qty;
+    const have = storageCount(state, id);
+    const ok = have >= need;
+    return `<div class="confirm-craft-mat ${ok ? "ok" : "lack"}">
+      <img src="assets/item/${id}.png" alt="" onerror="this.style.opacity='0.25'">
+      <span>${escapeHtml(itemName(id))} ×${need}</span>
+      <small>所持 ${have}</small>
+    </div>`;
+  }).join("");
+}
+
+function showCraftConfirm(state, meta) {
+  return new Promise((resolve) => {
+    const max = maxCraftCount(state, meta.id);
+    if (max < 1) {
+      toast("材料または予算が不足しています");
+      resolve(0);
+      return;
+    }
+    let qty = 1;
+    const wrap = document.createElement("div");
+    wrap.className = "confirm-overlay";
+    wrap.innerHTML = `<div class="confirm-box wide">
+      <h4>制作しますか？</h4>
+      <div class="confirm-body-html">
+        <div class="confirm-craft">
+          <div class="confirm-craft-out">
+            <img src="assets/item/${meta.id}.png" alt="" onerror="this.style.opacity='0.2'">
+            <div>
+              <strong style="color:${gradeColor(meta.id)}">${escapeHtml(meta.name)}</strong>
+              <span style="color:#ffd93d;margin-left:4px">${rarityStars(meta.rarity)}</span>
+            </div>
+          </div>
+          <div class="craft-qty-row">
+            <span class="label">個数</span>
+            <button type="button" class="craft-qty-btn" data-qty-minus aria-label="減らす">−</button>
+            <input type="range" class="craft-qty-slider" min="1" max="${max}" value="1" step="1">
+            <button type="button" class="craft-qty-btn" data-qty-plus aria-label="増やす">+</button>
+            <span class="craft-qty-num">×1</span>
+            ${max > 1 ? `<span class="craft-qty-max">最大 ${max}</span>` : ""}
+          </div>
+          <div class="confirm-craft-label">必要素材</div>
+          <div class="confirm-craft-mats"></div>
+          <div class="confirm-craft-cost"></div>
+        </div>
+      </div>
+      <div class="confirm-actions">
+        <button type="button" class="btn btn-sm btn-secondary" data-no>いいえ</button>
+        <button type="button" class="btn btn-sm btn-primary" data-yes>はい</button>
+      </div>
+    </div>`;
+    document.body.appendChild(wrap);
+
+    const matsEl = wrap.querySelector(".confirm-craft-mats");
+    const costEl = wrap.querySelector(".confirm-craft-cost");
+    const qtyEl = wrap.querySelector(".craft-qty-num");
+    const slider = wrap.querySelector(".craft-qty-slider");
+    const btnMinus = wrap.querySelector("[data-qty-minus]");
+    const btnPlus = wrap.querySelector("[data-qty-plus]");
+    const btnYes = wrap.querySelector("[data-yes]");
+
+    const refresh = () => {
+      const cost = (meta.craftCost || 0) * qty;
+      const budgetOk = state.budget >= cost;
+      matsEl.innerHTML = craftConfirmMatsHtml(state, meta, qty);
+      costEl.textContent = `予算 ${cost.toLocaleString()}（所持 ${state.budget.toLocaleString()}）`;
+      costEl.classList.toggle("lack", !budgetOk);
+      qtyEl.textContent = `×${qty}`;
+      slider.value = String(qty);
+      btnMinus.disabled = qty <= 1;
+      btnPlus.disabled = qty >= max;
+      btnYes.disabled = qty < 1;
+    };
+
+    const setQty = (v) => {
+      qty = Math.max(1, Math.min(max, v | 0));
+      refresh();
+    };
+
+    btnMinus.onclick = () => setQty(qty - 1);
+    btnPlus.onclick = () => setQty(qty + 1);
+    slider.oninput = () => setQty(Number(slider.value));
+    refresh();
+
+    const done = (v) => { wrap.remove(); resolve(v); };
+    btnYes.onclick = () => done(qty);
+    wrap.querySelector("[data-no]").onclick = () => done(0);
+  });
+}
+
+function craftCardHtml(state, meta) {
+  const affordable = craftAffordable(state, meta);
+  const cost = meta.craftCost || 0;
+  const mats = Object.entries(meta.craft).map(([id, n]) => craftMatChip(state, id, n)).join("");
+  const rangeNote = meta.statRange
+    ? `<div class="st" style="font-size:10px;margin-top:2px">${escapeHtml(formatAttachStatLine({ id: meta.id, rolls: meta.stat }))}。個体ごとに振れ幅とレアが付く</div>`
+    : "";
+  const skill = meta.skill
+    ? `<div class="sk" style="font-size:10px;color:rgb(var(--color-accent));margin-top:2px">固有: ${escapeHtml(meta.skill.name)}</div>`
+    : "";
+  return `<div class="craft-card r-${meta.rarity || "E"}${affordable ? " affordable" : " locked"}">
+    <div class="craft-out">
+      <img src="assets/item/${meta.id}.png" alt="" onerror="this.style.opacity='0.2'">
+      <div>
+        <div class="nm" style="color:${gradeColor(meta.id)}">${escapeHtml(meta.name)}<span class="stars">${rarityStars(meta.rarity)}</span></div>
+        <span class="craft-kind">${CRAFT_KIND_LABELS[meta.kind] || meta.kind}</span>
+        ${rangeNote}${skill}
+        <div class="craft-stock">在庫 ${storageCount(state, meta.id)}</div>
+      </div>
+    </div>
+    <div class="craft-mats">${mats}</div>
+    <div class="craft-foot">
+      <span class="cost${state.budget < cost ? " lack" : ""}">予算 ${cost.toLocaleString()}</span>
+      <button type="button" class="btn btn-sm btn-primary" onclick="craft('${meta.id}')" ${affordable ? "" : "disabled"}>製作</button>
+    </div>
+  </div>`;
+}
+
+function renderAlchemy() {
+  const list = filteredCraftableList(state);
+  const kindTabs = [
+    ["ALL", "すべて"],
+    ["part", "部品"],
+    ["object", "収容"],
+    ["gear", "装備"],
+    ["attach", "アタッチ"],
+    ["artifact", "アーティファクト"],
+  ].map(([id, label]) =>
+    `<button type="button" class="${alchemyKindTab === id ? "active" : ""}" data-alchemy-kind="${id}">${label}</button>`
+  ).join("");
+  const rarityTabs = ["ALL", "SS", "S", "A", "B", "C", "D", "E"].map((t) =>
+    `<button type="button" class="${alchemyRarityTab === t ? "active" : ""}" data-alchemy-rtab="${t}">${t === "ALL" ? "すべて" : rarityStars(t)}</button>`
+  ).join("");
+  const sorts = [
+    ["rarity", "★"],
+    ["name", "名前"],
+    ["cost", "予算"],
+    ["stock", "在庫"],
+  ].map(([id, label]) =>
+    `<button type="button" class="${alchemySortBy === id ? "active" : ""}" data-alchemy-sort="${id}">${label}</button>`
+  ).join("");
+  const cards = list.length
+    ? list.map((m) => craftCardHtml(state, m)).join("")
+    : `<div class="craft-empty">条件に合うレシピがありません。フィルタを緩めるか、材料を倉庫へ補充してください。</div>`;
+
+  return `<div class="panel">
+    <h2>SCP-914 工廠</h2>
+    <p style="font-size:12px;color:rgb(var(--color-text-muted));margin-bottom:10px">
+      材料は倉庫から消費され、成果物は倉庫へ直接入る。上位レシピは収容品を材料にする。分解収率はクラフトより低いので、作って壊すと損。収容品は売却・分解のほか、工廠・拠点拡張・装備強化の三つの出口がある。
+    </p>
+    <div class="craft-toolbar">
+      <span class="label">カテゴリ</span>
+      <div class="rarity-tabs" style="margin:0">${kindTabs}</div>
+    </div>
+    <div class="craft-toolbar">
+      <span class="label">レア度</span>
+      <div class="rarity-tabs" style="margin:0">${rarityTabs}</div>
+    </div>
+    <div class="craft-toolbar">
+      <span class="label">並び替え</span>
+      <div class="sort-tools" style="margin:0">${sorts}</div>
+    </div>
+    <div class="craft-toolbar">
+      <span class="label">絞り込み</span>
+      <div class="sort-tools" style="margin:0">
+        <button type="button" class="${alchemyCraftableOnly ? "active" : ""}" id="alchemy-craftable-only">制作可能のみ</button>
+      </div>
+    </div>
+    <div class="craft-grid">${cards}</div>
+    <div class="actions" style="margin-top:12px">
+      <button type="button" class="btn btn-secondary" data-goto="items">入手アイテム整理へ</button>
+      <span style="font-size:11px;color:rgb(var(--color-text-muted))">保有予算 ${state.budget.toLocaleString()} / レシピ ${list.length} 件</span>
+    </div>
+  </div>`;
+}
+
+function siteInspectOf() {
+  const n = siteInspectLevel | 0;
+  if (n >= 1 && n <= GAME_DATA.siteUpgrades.length) return n;
+  return state.siteLevel;
+}
+
+function siteNodeStatus(level) {
+  if (level < state.siteLevel) return { cls: "done", tag: "完了" };
+  if (level === state.siteLevel) return { cls: "current", tag: "運用中" };
+  if (level === state.siteLevel + 1) {
+    const next = GAME_DATA.siteUpgrades[level - 1];
+    return { cls: "next", tag: "要 予算+資材" };
+  }
+  return { cls: "locked", tag: "未到達" };
+}
+
+function siteStatDelta(fromVal, toVal, suffix = "") {
+  const d = toVal - fromVal;
+  if (!d) return `${toVal}${suffix}`;
+  const sign = d > 0 ? "+" : "";
+  return `${toVal}${suffix} <span class="up">${sign}${d}${suffix}</span>`;
+}
+
+function renderSiteHover(inspect, cur) {
+  const { tag } = siteNodeStatus(inspect.level);
+  const stam = GAME_DATA.staminaMaxBase + inspect.staminaBonus;
+  const stamCur = GAME_DATA.staminaMaxBase + cur.staminaBonus;
+  const vsCur = inspect.level !== cur.level;
+  const stamLine = vsCur ? siteStatDelta(stamCur, stam) : String(stam);
+  const slotLine = vsCur ? siteStatDelta(cur.chamberSlots, inspect.chamberSlots) : String(inspect.chamberSlots);
+  const dropNow = Math.round(inspect.dropBonus * 100);
+  const dropCur = Math.round(cur.dropBonus * 100);
+  const dropLine = vsCur ? siteStatDelta(dropCur, dropNow, "%") : `${dropNow}%`;
+  const isNext = inspect.level === state.siteLevel + 1;
+  const isMax = !GAME_DATA.siteUpgrades[state.siteLevel];
+  let action = "";
+  if (isNext) {
+    const lack = materialsLack(state, inspect.materials);
+    const can = state.budget >= inspect.cost && !lack.length;
+    const mats = Object.entries(inspect.materials || {}).map(([id, n]) => craftMatChip(state, id, n)).join("");
+    const why = !can
+      ? (state.budget < inspect.cost ? "（予算不足）" : "（資材不足）")
+      : "";
+    action = `<div class="cost">拡張費用 ${inspect.cost.toLocaleString()} / 所持 ${state.budget.toLocaleString()}</div>
+      <div class="craft-mats" style="margin:8px 0">${mats}</div>
+      <button type="button" class="btn btn-accent" id="btn-upgrade-site" ${can ? "" : "disabled"}>拡張する — ${inspect.cost.toLocaleString()}${why}</button>`;
+  } else if (inspect.level === state.siteLevel) {
+    action = isMax
+      ? `<p class="cost">最大レベル。これ以上の拡張はない。</p>`
+      : `<p class="cost">次のノードを選ぶと拡張できる。</p>`;
+  } else if (inspect.level < state.siteLevel) {
+    action = `<p class="cost">すでに拡張済み。</p>`;
+  } else {
+    action = `<p class="cost">先に前段階を拡張してください。</p>`;
+  }
+  return `<aside class="site-hover">
+    <div class="kicker">Lv.${inspect.level} 詳細 — ${tag}</div>
+    <h2>${escapeHtml(inspect.name)}</h2>
+    <p class="desc">${escapeHtml(inspect.desc || "")}</p>
+    <dl class="site-hover-stats">
+      <div><dt>許可証上限</dt><dd>${stamLine}</dd></div>
+      <div><dt>試験槽</dt><dd>${slotLine}</dd></div>
+      <div><dt>ドロップ補正</dt><dd>${dropLine}</dd></div>
+    </dl>
+    ${action}
+  </aside>`;
+}
+
+function renderSite() {
+  const cur = GAME_DATA.siteUpgrades[state.siteLevel - 1];
+  const inspectLv = siteInspectOf();
+  const inspect = GAME_DATA.siteUpgrades[inspectLv - 1];
+  const tree = GAME_DATA.siteUpgrades.map((s, i) => {
+    const { cls, tag } = siteNodeStatus(s.level);
+    const selected = s.level === inspectLv ? " selected" : "";
+    const link = i < GAME_DATA.siteUpgrades.length - 1
+      ? `<div class="site-link${s.level < state.siteLevel ? " on" : ""}"></div>`
+      : "";
+    return `<button type="button" class="site-node ${cls}${selected}" data-site-lv="${s.level}">
+      <span class="site-node-gem"><b>${s.level}</b></span>
+      <span>
+        <span class="site-node-name">${escapeHtml(s.name)}</span>
+        <span class="site-node-tag">${tag}</span>
+      </span>
+    </button>${link}`;
+  }).join("");
+  return `<div class="panel">
+    <h2>拡張段階 <small style="font-weight:400;color:rgb(var(--color-text-muted))">Site Lv.${state.siteLevel} — ${escapeHtml(cur.name)}</small></h2>
+    <div class="site-tree-layout">
+      <div class="site-tree">${tree}</div>
+      ${renderSiteHover(inspect, cur)}
+    </div>
+  </div>`;
+}
+
+function renderCredits() {
+  const entries = GAME_DATA.attribution.entries.map((e) =>
+    `<tr><td>${e.scp}</td><td>${e.author}</td><td><a href="${e.url}" target="_blank" rel="noopener">Wiki</a></td></tr>`).join("");
+  return `<div class="panel"><p style="font-size:13px;margin-bottom:12px"><strong>CC BY-SA 3.0</strong> — <a href="${GAME_DATA.attribution.wiki.url}" target="_blank" rel="noopener">SCP Foundation Wiki</a></p>
+    <table class="data-table"><thead><tr><th>SCP</th><th>著者</th><th></th></tr></thead><tbody>${entries}</tbody></table>
+    ${GAME_DATA.attribution.facilitiesJp ? `<p style="font-size:12px;margin-top:12px">探索地点: <a href="${GAME_DATA.attribution.facilitiesJp.url}" target="_blank" rel="noopener">${escapeHtml(GAME_DATA.attribution.facilitiesJp.name)}</a>（SCP-JP）</p>` : ""}
+    <p style="font-size:11px;margin-top:12px;color:rgb(var(--color-text-muted))">システム参考: <a href="https://arkhomu.com/" target="_blank" rel="noopener">方舟のホムンクルス</a></p></div>`;
+}
+
+function bindViewEvents() {
+  document.querySelectorAll("[data-goto]").forEach((btn) => {
+    const v = btn.dataset.goto;
+    if (!v) return;
+    btn.onclick = () => goView(v);
+  });
+  if (currentView === "items") bindSortEvents();
+  const back = document.getElementById("btn-back");
+  if (back) back.onclick = () => goView("dashboard");
+  const btnMap = document.getElementById("btn-map-select");
+  if (btnMap) btnMap.onclick = () => goView("map");
+  document.querySelectorAll("[data-map-site]").forEach((btn) => {
+    btn.onclick = () => {
+      const r = selectMapSite(state, btn.dataset.mapSite);
+      toast(r.msg);
+      if (r.ok) {
+        sectorSim = null;
+        goView("dashboard");
+      }
+    };
+  });
+  const btnBoost = document.getElementById("btn-boost");
+  if (btnBoost) btnBoost.onclick = doBoost;
+  const btnSentry = document.getElementById("btn-sentry");
+  if (btnSentry) btnSentry.onclick = doSentrySkill;
+  const canvas = document.getElementById("sector-canvas");
+  if (canvas) canvas.onclick = onSectorCanvasClick;
+  const btnBreach = document.getElementById("btn-force-breach");
+  if (btnBreach) btnBreach.onclick = doForceBreach;
+  const btnBoss = document.getElementById("btn-boss");
+  if (btnBoss) btnBoss.onclick = doBossChallenge;
+  if (currentView === "equipment") {
+    document.querySelectorAll("[data-equip-slot]").forEach((btn) => {
+      btn.onclick = () => {
+        const id = btn.dataset.equipSlot;
+        equipPickSlot = equipPickSlot === id ? null : id;
+        render();
+      };
+    });
+    document.querySelectorAll("[data-equip-id]").forEach((btn) => {
+      btn.onclick = () => {
+        if (!equipPickSlot) return;
+        const idx = Number(btn.dataset.equipIndex);
+        const r = equipOperator(state, equipPickSlot, btn.dataset.equipId, Number.isFinite(idx) ? idx : undefined);
+        toast(r.msg);
+        if (r.ok) render();
+      };
+    });
+    document.querySelectorAll("[data-unequip-slot]").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const r = unequipOperator(state, btn.dataset.unequipSlot);
+        toast(r.msg);
+        if (r.ok) render();
+      };
+    });
+    document.querySelectorAll("[data-enhance-slot]").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        openEnhanceOverlay(btn.dataset.enhanceSlot);
+      };
+    });
+    document.querySelectorAll("[data-att-uid]").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        openAttachOverlay(btn.dataset.attUid, btn.dataset.attachKind || null);
+      };
+    });
+    document.querySelectorAll(".equip-att-row, .pick-att-row").forEach((row) => {
+      row.onclick = (e) => e.stopPropagation();
+    });
+    document.querySelectorAll("[data-equip-rtab]").forEach((btn) => {
+      btn.onclick = () => { equipRarityTab = btn.dataset.equipRtab; render(); };
+    });
+    document.querySelectorAll("[data-equip-wtab]").forEach((btn) => {
+      btn.onclick = () => { equipWeaponTypeTab = btn.dataset.equipWtab; render(); };
+    });
+    document.querySelectorAll("[data-equip-sort]").forEach((btn) => {
+      btn.onclick = () => { equipSortBy = btn.dataset.equipSort; render(); };
+    });
+    const skillBtn = document.getElementById("equip-skill-only");
+    if (skillBtn) {
+      skillBtn.onclick = () => { equipSkillOnly = !equipSkillOnly; render(); };
+    }
+  }
+  const btnCross = document.getElementById("btn-cross");
+  if (btnCross) btnCross.onclick = doCross;
+  const btnCrossReset = document.getElementById("btn-cross-reset");
+  if (btnCrossReset) btnCrossReset.onclick = () => { crossParentA = null; crossParentB = null; render(); };
+  if (currentView === "site") {
+    document.querySelectorAll("[data-site-lv]").forEach((btn) => {
+      btn.onclick = () => {
+        siteInspectLevel = Number(btn.dataset.siteLv);
+        render();
+      };
+    });
+  }
+  const btnUpgrade = document.getElementById("btn-upgrade-site");
+  if (btnUpgrade) btnUpgrade.onclick = () => {
+    const r = upgradeSite(state); toast(r.msg);
+    if (r.ok) {
+      siteInspectLevel = state.siteLevel;
+      saveGame(state); render();
+    }
+  };
+  const btnCatalog = document.getElementById("btn-catalog");
+  if (btnCatalog) btnCatalog.onclick = doCatalog;
+  const btnProfile = document.getElementById("btn-save-profile");
+  if (btnProfile) btnProfile.onclick = saveProfile;
+  if (currentView === "cross") {
+    document.querySelectorAll("#cross-pick .unit-card[data-uid]").forEach((el) => {
+      el.onclick = () => pickCross(Number(el.dataset.uid));
+    });
+    document.querySelectorAll("[data-cross-class]").forEach((btn) => {
+      btn.onclick = () => { crossClass = btn.dataset.crossClass; render(); };
+    });
+    document.querySelectorAll("[data-cross-kind]").forEach((btn) => {
+      btn.onclick = () => { crossKind = btn.dataset.crossKind; render(); };
+    });
+    document.querySelectorAll("[data-cross-sort]").forEach((btn) => {
+      btn.onclick = () => { crossSort = btn.dataset.crossSort; render(); };
+    });
+    bindCrossDrag();
+  }
+  if (currentView === "codex") {
+    document.querySelectorAll("[data-codex-class]").forEach((btn) => {
+      btn.onclick = () => { codexClass = btn.dataset.codexClass; render(); };
+    });
+    document.querySelectorAll("[data-codex-found]").forEach((btn) => {
+      btn.onclick = () => { codexFound = btn.dataset.codexFound; render(); };
+    });
+    document.querySelectorAll("[data-codex-kind]").forEach((btn) => {
+      btn.onclick = () => { codexKind = btn.dataset.codexKind; render(); };
+    });
+    document.querySelectorAll("[data-codex-sort]").forEach((btn) => {
+      btn.onclick = () => { codexSort = btn.dataset.codexSort; render(); };
+    });
+  }
+  if (currentView === "alchemy") {
+    document.querySelectorAll("[data-alchemy-kind]").forEach((btn) => {
+      btn.onclick = () => { alchemyKindTab = btn.dataset.alchemyKind; render(); };
+    });
+    document.querySelectorAll("[data-alchemy-rtab]").forEach((btn) => {
+      btn.onclick = () => { alchemyRarityTab = btn.dataset.alchemyRtab; render(); };
+    });
+    document.querySelectorAll("[data-alchemy-sort]").forEach((btn) => {
+      btn.onclick = () => { alchemySortBy = btn.dataset.alchemySort; render(); };
+    });
+    const craftableBtn = document.getElementById("alchemy-craftable-only");
+    if (craftableBtn) {
+      craftableBtn.onclick = () => { alchemyCraftableOnly = !alchemyCraftableOnly; render(); };
+    }
+  }
+}
+
+function saveProfile() {
+  state.profile = state.profile || {};
+  state.profile.codename = document.getElementById("profile-codename").value.slice(0, 24) || "Researcher";
+  state.profile.title = document.getElementById("profile-title").value.slice(0, 32) || "収容担当";
+  state.profile.clearance = Math.min(5, Math.max(1, Number(document.getElementById("profile-clearance").value) || 2));
+  saveGame(state);
+  toast("プロフィールを保存しました");
+  render();
+}
+
+function doSentrySkill() {
+  if (!Array.isArray(state.sentries)) state.sentries = [];
+  if (sentryPlaceMode) {
+    sentryPlaceMode = false;
+    sentryPreview = null;
+    render();
+    return;
+  }
+  if (state.sentries.length >= SENTRY_MAX) {
+    toast(`設置上限です（${SENTRY_MAX}基）。MAP上の砲台をクリックして削除してください`);
+    return;
+  }
+  sentryPlaceMode = true;
+  sentryPreview = null;
+  toast("解明した室内にセントリーガンを配置してください");
+  render();
+}
+
+function canvasToSector(canvas, ev) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (ev.clientX - rect.left) * (canvas.width / rect.width),
+    y: (ev.clientY - rect.top) * (canvas.height / rect.height),
+  };
+}
+
+function onSectorCanvasClick(ev) {
+  if (sentryBusy || !sectorSim) return;
+  const canvas = ev.currentTarget;
+  const { x, y } = canvasToSector(canvas, ev);
+  const hit = sentryIndexAt(state.sentries || [], x, y);
+  if (hit >= 0) {
+    askRemoveSentry(hit);
+    return;
+  }
+  if (!sentryPlaceMode) return;
+  if ((state.sentries || []).length >= SENTRY_MAX) {
+    toast(`設置上限です（${SENTRY_MAX}基）`);
+    return;
+  }
+  const room = roomContaining(sectorSim.sector, x, y);
+  if (!room) {
+    toast("室内に配置してください");
+    return;
+  }
+  if (!isRoomRevealed(sectorSim, room.id)) {
+    toast("解明した室内にだけ配置できます");
+    return;
+  }
+  sentryPreview = { x, y };
+  sentryBusy = true;
+  if (canvas && sectorSim) drawSector(canvas.getContext("2d"), sectorSim);
+  showConfirm({
+    title: "配置しますか？",
+    body: `${room.code} ${room.name} に設置します。射程内の敵を自動撃破します。`,
+    light: true,
+  }).then((ok) => {
+    sentryBusy = false;
+    sentryPreview = null;
+    if (ok) {
+      if (!Array.isArray(state.sentries)) state.sentries = [];
+      if (state.sentries.length >= SENTRY_MAX) {
+        toast(`設置上限です（${SENTRY_MAX}基）`);
+      } else {
+        state.sentries.push({ x, y });
+        sentryPlaceMode = false;
+        saveGame(state);
+        toast(`セントリーガンを配置（${state.sentries.length}/${SENTRY_MAX}）`);
+      }
+    }
+    render();
+  });
+}
+
+function askRemoveSentry(index) {
+  if (sentryBusy) return;
+  sentryBusy = true;
+  sentryPlaceMode = false;
+  sentryPreview = null;
+  showConfirm({
+    title: "削除しますか？",
+    body: "このセントリーガンを撤去します。設置枠が 1 つ戻ります。",
+    light: true,
+  }).then((ok) => {
+    sentryBusy = false;
+    if (ok && state.sentries && index >= 0 && index < state.sentries.length) {
+      state.sentries.splice(index, 1);
+      saveGame(state);
+      toast(`セントリーガンを削除（${state.sentries.length}/${SENTRY_MAX}）`);
+    }
+    render();
+  });
+}
+
+function doBoost() {
+  if (state.stamina < 1) { toast("許可証が不足しています（要 1）"); return; }
+  showConfirm({
+    title: "緊急展開",
+    body: `許可証を 1 枚使用します（所持 ${state.stamina}）。巡回速度が 60 秒間 ×2 になります。`,
+  }).then((ok) => {
+    if (!ok) return;
+    const r = boostSector(state);
+    toast(r.msg);
+    if (r.ok) render();
+  });
+}
+
+function doForceBreach() {
+  if (state.stamina < 5) { toast("許可証が不足しています（要 5）"); return; }
+  showConfirm({
+    title: "強行突入",
+    body: `許可証を 5 枚使用します（所持 ${state.stamina}）。区画制圧率を即 MAX にします。`,
+  }).then((ok) => {
+    if (!ok) return;
+    const r = forceBreach(state);
+    toast(r.msg);
+    if (r.ok) render();
+  });
+}
+
+function doBossChallenge() {
+  if (bossPlayback) return;
+  if (sectorSim?.boss) { toast("収容違反体が接近中です"); return; }
+  if (!isBreachReady(state)) { toast("制圧率が MAX になってから挑戦できます"); return; }
+  if (!sectorSim) {
+    sectorSim = createSectorSim(state, currentFloorData(state));
+  }
+  spawnBoss(sectorSim);
+  state.bossActive = true;
+  toast("収容違反体が出現した");
+  render();
+}
+
+function battleFighterHtml(f, side) {
+  const art = f.isOperator
+    ? `<div class="catalog-art"><img src="assets/user/user.jpg" alt=""></div>`
+    : catalogArtHtml(f.catalogId);
+  return `<div class="bf ${side}" data-fid="${f.id}">
+    ${art}
+    <div>
+      <div class="bf-name">${escapeHtml(f.name)}</div>
+      <div class="bar"><i data-bar></i></div>
+      <div class="bf-hp" data-hp>${f.maxHp} / ${f.maxHp}</div>
+    </div>
+  </div>`;
+}
+
+function setBattleHp(root, id, hp, maxHp) {
+  const row = root.querySelector(`[data-fid="${id}"]`);
+  if (!row) return;
+  const pct = maxHp > 0 ? Math.max(0, Math.round((hp / maxHp) * 100)) : 0;
+  const bar = row.querySelector("[data-bar]");
+  const label = row.querySelector("[data-hp]");
+  if (bar) bar.style.width = `${pct}%`;
+  if (label) label.textContent = `${Math.max(0, hp)} / ${maxHp}`;
+  row.classList.toggle("dead", hp <= 0);
+}
+
+function battleResultHtml(result) {
+  const loot = result.loot || [];
+  const xp = result.xpGains || [];
+  const lootHtml = loot.length
+    ? loot.map((it) => `<span class="result-chip">
+        <img src="assets/item/${it.id}.png" alt="" onerror="this.style.opacity='0.2'">
+        ${escapeHtml(it.name)} <b>×${it.qty || 1}</b>
+      </span>`).join("")
+    : `<span class="result-empty">入手なし</span>`;
+  const budgetHtml = result.budgetGain
+    ? `<span class="result-chip budget">予算 +${Number(result.budgetGain).toLocaleString()}</span>`
+    : "";
+  const discHtml = (result.discoveries || []).map((d) =>
+    `<div class="result-disc">${catalogArtHtml(d.catalogId)}<span>${escapeHtml(d.name)}</span></div>`
+  ).join("");
+  const xpHtml = xp.length
+    ? xp.map((g) => {
+        const up = g.levelAfter > g.levelBefore;
+        const lv = up
+          ? `Lv.${g.levelBefore} → <b>Lv.${g.levelAfter}</b> レベルアップ`
+          : `Lv.${g.levelAfter}`;
+        return `<div class="result-xp${up ? " lvup" : ""}">
+          ${catalogArtHtml(g.catalogId)}
+          <div>
+            <div class="bf-name">${escapeHtml(g.scp)} ${escapeHtml(g.name)}</div>
+            <div class="bf-hp">+${g.xp} XP　${lv}</div>
+          </div>
+        </div>`;
+      }).join("")
+    : `<span class="result-empty">経験値なし</span>`;
+  const advance = result.win && result.advancedTo
+    ? `<p class="result-empty" style="margin-top:8px">${escapeHtml(floorName(result.advancedTo))} へ進出</p>`
+    : "";
+  return `<div class="label">入手アイテム</div>
+    <div class="result-loot">${lootHtml}${budgetHtml}</div>
+    ${discHtml ? `<div class="label">新規発見</div>${discHtml}` : ""}
+    <div class="label">経験値</div>
+    ${xpHtml}
+    ${advance}`;
+}
+
+function beginBossPlayback() {
+  if (bossPlayback) return;
+  bossPlayback = true;
+  const result = runBreachBattle(state);
+  playBossBattle(result).then(() => {
+    bossPlayback = false;
+    state.bossActive = false;
+    if (sectorSim) sectorSim.boss = null;
+    if (result.win) sectorSim = null;
+    render();
+  });
+}
+
+function playBossBattle(result) {
+  return new Promise((resolve) => {
+    const wrap = document.createElement("div");
+    wrap.className = "battle-overlay";
+    const title = result.win ? "収容違反 — 交戦" : "収容違反 — 交戦";
+    wrap.innerHTML = `<div class="battle-box">
+      <h4>${escapeHtml(title)}</h4>
+      <div class="battle-sides">
+        <div class="battle-col">
+          <div class="label">展開チーム</div>
+          ${(result.allies || []).map((f) => battleFighterHtml(f, "ally")).join("")}
+        </div>
+        <div class="battle-col">
+          <div class="label">収容違反体</div>
+          ${(result.enemies || []).map((f) => battleFighterHtml(f, "enemy")).join("")}
+        </div>
+      </div>
+      <div class="battle-log-live" id="battle-log-live"></div>
+      <div class="battle-result" data-result hidden></div>
+      <div class="battle-actions">
+        <button type="button" class="btn btn-sm btn-secondary" data-skip>スキップ</button>
+        <button type="button" class="btn btn-sm btn-primary" data-done hidden>了解</button>
+      </div>
+    </div>`;
+    document.body.appendChild(wrap);
+    const logBox = wrap.querySelector("#battle-log-live");
+    const skipBtn = wrap.querySelector("[data-skip]");
+    const doneBtn = wrap.querySelector("[data-done]");
+    const events = result.events || [];
+    let i = 0;
+    let timer = 0;
+    let finished = false;
+
+    const appendLog = (ev) => {
+      if (!ev?.text) return;
+      const div = document.createElement("div");
+      div.className = ev.type === "hit" && ev.crit ? "crit" : (ev.type || "note");
+      if (ev.type === "end") div.classList.add(ev.win ? "win" : "lose");
+      div.textContent = ev.text;
+      logBox.appendChild(div);
+      logBox.scrollTop = logBox.scrollHeight;
+    };
+
+    const apply = (ev) => {
+      if (ev.type === "hit" || ev.type === "heal" || ev.type === "ko") {
+        setBattleHp(wrap, ev.targetId, ev.hp ?? 0, ev.maxHp || 1);
+      }
+      appendLog(ev);
+    };
+
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      clearInterval(timer);
+      while (i < events.length) apply(events[i++]);
+      for (const line of result.log || []) {
+        const last = logBox.lastElementChild;
+        if (last && last.textContent === line) continue;
+        const exists = [...logBox.children].some((n) => n.textContent === line);
+        if (exists) continue;
+        const div = document.createElement("div");
+        if (line.includes("成功")) div.className = "end win";
+        else if (line.includes("失敗")) div.className = "end lose";
+        div.textContent = line;
+        logBox.appendChild(div);
+      }
+      logBox.scrollTop = logBox.scrollHeight;
+      wrap.querySelector(".battle-sides").hidden = true;
+      logBox.hidden = true;
+      const pane = wrap.querySelector("[data-result]");
+      pane.hidden = false;
+      pane.innerHTML = battleResultHtml(result);
+      const heading = wrap.querySelector("h4");
+      heading.textContent = result.win ? "リザルト — 制圧成功" : "リザルト — 撤退";
+      heading.classList.toggle("win", !!result.win);
+      skipBtn.hidden = true;
+      doneBtn.hidden = false;
+    };
+
+    const tick = () => {
+      if (i >= events.length) {
+        finish();
+        return;
+      }
+      apply(events[i++]);
+    };
+
+    skipBtn.onclick = finish;
+    doneBtn.onclick = () => { wrap.remove(); resolve(); };
+    timer = setInterval(tick, 160);
+    tick();
+  });
+}
+
+function doCross() {
+  if (!crossParentA || !crossParentB) return;
+  const r = crossTest(state, crossParentA, crossParentB);
+  toast(r.msg);
+  if (r.ok) {
+    crossParentA = null; crossParentB = null;
+    saveGame(state); render();
+  }
+}
+
+function pickCross(uid) {
+  if (crossJustDragged) { crossJustDragged = false; return; }
+  if (crossParentA === uid) { crossParentA = null; render(); return; }
+  if (crossParentB === uid) { crossParentB = null; render(); return; }
+  if (!crossParentA) crossParentA = uid;
+  else if (!crossParentB) crossParentB = uid;
+  else crossParentA = uid;
+  render();
+}
+
+function dropCrossParent(slot, uid) {
+  if (slot === "A") {
+    if (crossParentB === uid) crossParentB = null;
+    crossParentA = uid;
+  } else if (slot === "B") {
+    if (crossParentA === uid) crossParentA = null;
+    crossParentB = uid;
+  }
+  render();
+}
+
+function bindCrossDrag() {
+  document.querySelectorAll("#cross-pick .unit-card[data-uid], .fusion-box .unit-card[data-uid]").forEach((el) => {
+    el.querySelectorAll("img").forEach((img) => { img.draggable = false; });
+    el.addEventListener("dragstart", (e) => {
+      const from = el.closest("[data-cross-slot]");
+      dragPayload = { src: "cross", uid: Number(el.dataset.uid), fromSlot: from ? from.dataset.crossSlot : null };
+      el.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(el.dataset.uid));
+    });
+    el.addEventListener("dragend", () => {
+      dragPayload = null;
+      el.classList.remove("dragging");
+      crossJustDragged = true;
+    });
+  });
+  document.querySelectorAll(".fusion-box .unit-card[data-uid]").forEach((el) => {
+    el.onclick = () => {
+      if (crossJustDragged) { crossJustDragged = false; return; }
+      const slot = el.closest("[data-cross-slot]")?.dataset.crossSlot;
+      if (slot === "A") crossParentA = null;
+      if (slot === "B") crossParentB = null;
+      render();
+    };
+  });
+
+  document.querySelectorAll("[data-cross-slot]").forEach((box) => {
+    box.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      box.classList.add("over");
+    });
+    box.addEventListener("dragleave", () => box.classList.remove("over"));
+    box.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      box.classList.remove("over");
+      const uid = dragPayload?.src === "cross" ? dragPayload.uid : Number(e.dataTransfer.getData("text/plain"));
+      if (!uid) return;
+      dropCrossParent(box.dataset.crossSlot, uid);
+    });
+  });
+
+  const pick = document.getElementById("cross-pick");
+  if (pick) {
+    pick.addEventListener("dragover", (e) => {
+      if (dragPayload?.src !== "cross" || !dragPayload.fromSlot) return;
+      e.preventDefault();
+    });
+    pick.addEventListener("drop", (e) => {
+      e.preventDefault();
+      if (dragPayload?.src !== "cross" || !dragPayload.fromSlot) return;
+      if (dragPayload.fromSlot === "A") crossParentA = null;
+      if (dragPayload.fromSlot === "B") crossParentB = null;
+      render();
+    });
+  }
+}
+
+function toggleSelect(uid) {
+  const idx = selectedUnits.indexOf(uid);
+  if (idx >= 0) selectedUnits.splice(idx, 1);
+  else selectedUnits = [uid];
+  render();
+}
+
+function addSquad(uid) {
+  if (state.squad.length >= 5) { toast("収容個体は5体まで"); return; }
+  if (!state.squad.includes(uid)) { state.squad.push(uid); saveGame(state); render(); }
+}
+function removeSquad(slot) {
+  if (slot <= 1) return;
+  state.squad.splice(slot - 2, 1);
+  saveGame(state);
+  render();
+}
+function addChamber(uid) {
+  const max = state.chamberMax || 2;
+  if (state.chamber.length >= max) { toast(`試験槽は${max}体まで`); return; }
+  if (!state.chamber.includes(uid)) { state.chamber.push(uid); saveGame(state); render(); }
+}
+function removeChamber(uid) { state.chamber = state.chamber.filter((id) => id !== uid); saveGame(state); render(); }
+
+function reclassSelected() {
+  if (selectedUnits.length !== 1) { toast("1体を選択"); return; }
+  const r = reclassifyUnit(state, selectedUnits[0]); toast(r.msg);
+  if (r.ok) { saveGame(state); render(); }
+}
+function equipSelected() {
+  if (selectedUnits.length !== 1) { toast("1体を選択"); return; }
+  const art = GAME_DATA.artifacts.find((a) => storageCount(state, a.id) > 0);
+  if (!art) { toast("アーティファクトなし"); return; }
+  const r = equipArtifact(state, selectedUnits[0], art.id); toast(r.msg);
+  if (r.ok) { saveGame(state); render(); }
+}
+function sellArt(id) {
+  const r = sellArtifact(state, id); toast(r.msg);
+  if (r.ok) { saveGame(state); render(); }
+}
+function craft(id) {
+  const meta = itemMeta(id);
+  if (!meta?.craft) {
+    toast("製作できないアイテムです");
+    return;
+  }
+  showCraftConfirm(state, meta).then((qty) => {
+    if (!qty) return;
+    const r = craftItem(state, id, qty);
+    toast(r.msg);
+    if (r.ok) { saveGame(state); render(); }
+  });
+}
+function doCatalog() {
+  const sel = document.getElementById("catalog-select");
+  if (!sel) return;
+  const obj = GAME_DATA.recoveryObjects.find((o) => storageCount(state, o.id) > 0);
+  if (!obj) { toast("素材なし（倉庫に収容アイテムがありません）"); return; }
+  const r = catalogUnit(state, sel.value, [obj.id]);
+  toast(r.msg);
+  if (r.ok) { saveGame(state); render(); }
+}
+
+function initChat() {
+  const authBtn = document.getElementById("btn-auth");
+  if (authBtn) authBtn.onclick = handleAuthButton;
+  document.querySelectorAll("#chat-tabs button").forEach((btn) => {
+    btn.onclick = () => {
+      chatChannel = btn.dataset.channel;
+      document.querySelectorAll("#chat-tabs button").forEach((b) => b.classList.toggle("active", b === btn));
+      renderChat();
+    };
+  });
+  const send = () => {
+    const input = document.getElementById("chat-input");
+    const text = input.value.trim();
+    if (!text) return;
+    if (chatChannel === "all" && sendFirebaseChat(text)) {
+      input.value = "";
+      return;
+    }
+    if (sendChat(state, text, chatChannel === "question" ? "question" : "all")) {
+      input.value = "";
+      saveGame(state);
+      renderChat();
+    }
+  };
+  document.getElementById("chat-send").onclick = send;
+  document.getElementById("chat-input").onkeydown = (e) => { if (e.key === "Enter") send(); };
+}
+
+function init() {
+  setTimeout(() => {
+    document.getElementById("splash").classList.add("hidden");
+    state = loadGame();
+    if (!state) state = createNewState();
+    migrateState(state);
+    applySiteBonuses(state);
+    if (!state.acceptedLicense) {
+      document.getElementById("license-screen").classList.remove("hidden");
+    } else {
+      document.getElementById("app").classList.remove("hidden");
+      initFirebaseChat();
+      initChat();
+      render();
+    }
+  }, 1200);
+
+  document.getElementById("btn-accept-license").onclick = () => {
+    state.acceptedLicense = true;
+    saveGame(state);
+    document.getElementById("license-screen").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    initFirebaseChat();
+    initChat();
+    render();
+  };
+
+  setInterval(() => {
+    if (state && !document.getElementById("app").classList.contains("hidden")) updateHeader();
+  }, 1000);
+}
+
+init();
+</script>
+</body>
+</html>
