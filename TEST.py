@@ -474,6 +474,11 @@ def main() -> int:
         failed += 1
     else:
         print("OK  floor depth yellow")
+    if "profile-dossier" not in html or "profile-id-card" not in html or "profile-clear" not in html:
+        print("FAIL プロフィールのドシエUIが無い")
+        failed += 1
+    else:
+        print("OK  profile dossier")
     if ".squad-mini .icon, .squad-mini .catalog-art" not in html or "width: 80px; height: 80px" not in html:
         print("FAIL 展開部隊アイコン枠が 80px になっていない")
         failed += 1

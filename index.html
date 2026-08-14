@@ -1651,6 +1651,98 @@ a { color: rgb(var(--color-secondary)); }
 .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .data-table th, .data-table td { padding: 6px 10px; border-bottom: 1px solid rgb(var(--color-frame)); text-align: left; }
 .data-table th { color: rgb(var(--color-text-muted)); font-weight: 400; }
+
+.profile-dossier .profile-kicker {
+  font-family: Consolas, monospace; font-size: 10px; letter-spacing: 0.18em;
+  color: rgb(var(--color-accent)); margin-bottom: 4px;
+}
+.profile-dossier h2 { margin-bottom: 4px; }
+.profile-serial {
+  font-family: Consolas, monospace; font-size: 11px; letter-spacing: 0.1em;
+  color: rgb(var(--color-text-muted)); margin-bottom: 16px;
+}
+.profile-grid {
+  display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 22px; align-items: start;
+}
+@media (max-width: 860px) { .profile-grid { grid-template-columns: 1fr; } }
+.profile-id-card { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.profile-portrait {
+  position: relative; width: 188px; height: 188px;
+  background: #05070a; border: 1px solid rgb(var(--color-accent) / 0.45);
+  box-shadow: 0 0 24px rgb(var(--color-accent) / 0.08);
+  overflow: hidden;
+}
+.profile-portrait img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  filter: saturate(0.85) contrast(1.08);
+}
+.profile-portrait .ph {
+  display: none; width: 100%; height: 100%;
+  align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: 3rem; letter-spacing: 0.08em;
+  color: rgb(var(--color-accent)); background: #0a1018;
+}
+.profile-portrait .scan {
+  position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(180deg, transparent 0 2px, rgb(0 0 0 / 0.18) 2px 3px);
+}
+.profile-tick {
+  position: absolute; width: 16px; height: 16px; pointer-events: none; z-index: 2;
+  border-color: #c4a34a;
+}
+.profile-tick.tl { top: -1px; left: -1px; border-top: 2px solid; border-left: 2px solid; }
+.profile-tick.tr { top: -1px; right: -1px; border-top: 2px solid; border-right: 2px solid; }
+.profile-tick.bl { bottom: -1px; left: -1px; border-bottom: 2px solid; border-left: 2px solid; }
+.profile-tick.br { bottom: -1px; right: -1px; border-bottom: 2px solid; border-right: 2px solid; }
+.profile-stamp {
+  position: absolute; bottom: 12px; right: 8px; z-index: 2;
+  font-family: var(--font-display); font-size: 13px; font-weight: 700; letter-spacing: 0.16em;
+  color: rgb(176 48 40 / 0.88); border: 2px solid rgb(176 48 40 / 0.72);
+  padding: 2px 8px; transform: rotate(-9deg);
+  background: rgb(6 8 12 / 0.35);
+}
+.profile-id-name {
+  font-family: var(--font-display); font-size: 1.35rem; letter-spacing: 0.12em;
+  text-align: center; line-height: 1.1;
+}
+.profile-id-title {
+  font-size: 11px; letter-spacing: 0.1em; color: rgb(var(--color-text-muted)); text-align: center;
+}
+.profile-fields { display: grid; gap: 14px; }
+.profile-field label {
+  display: block; font-size: 10px; letter-spacing: 0.16em;
+  color: rgb(var(--color-text-muted)); margin-bottom: 6px;
+}
+.profile-field input[type="text"] { width: 100%; }
+.profile-clear { display: flex; flex-wrap: wrap; gap: 6px; }
+.profile-clear button {
+  min-width: 52px; padding: 7px 8px;
+  font-family: var(--font-display); font-size: 13px; letter-spacing: 0.08em;
+  color: rgb(var(--color-text-muted)); background: rgb(var(--color-background));
+  border: 1px solid rgb(var(--color-frame));
+}
+.profile-clear button small { display: block; font-family: var(--font-main); font-size: 9px; letter-spacing: 0.04em; font-weight: 400; }
+.profile-clear button.on {
+  color: #05070a; background: rgb(var(--color-accent)); border-color: rgb(var(--color-accent));
+  box-shadow: 0 0 10px rgb(var(--color-accent) / 0.35);
+}
+.profile-save { margin-top: 4px; justify-self: start; min-width: 140px; }
+.profile-stats {
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px;
+  margin-top: 20px; padding-top: 16px; border-top: 1px solid rgb(var(--color-frame));
+}
+@media (max-width: 900px) { .profile-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.profile-stat {
+  text-align: center; padding: 10px 6px;
+  background: rgb(var(--color-background)); border: 1px solid rgb(var(--color-frame));
+}
+.profile-stat b {
+  display: block; font-family: var(--font-display); font-size: 1.2rem; letter-spacing: 0.06em;
+  color: rgb(var(--color-accent)); line-height: 1.15; margin-bottom: 4px;
+}
+.profile-stat span {
+  font-size: 10px; letter-spacing: 0.12em; color: rgb(var(--color-text-muted));
+}
 .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 select, input[type="text"], input[type="number"] {
   background: rgb(var(--color-background)); border: 1px solid rgb(var(--color-frame));
@@ -3609,22 +3701,58 @@ function refreshPendingLive() {
 
 function renderProfile() {
   const p = state.profile || {};
-  return `<div class="panel">
-    <h2>プロフィール設定</h2>
-    <div style="display:grid;gap:12px;max-width:400px">
-      <label style="font-size:12px;color:rgb(var(--color-text-muted))">作戦コードネーム
-        <input type="text" id="profile-codename" value="${escapeHtml(p.codename || "")}" style="width:100%;margin-top:4px">
-      </label>
-      <label style="font-size:12px;color:rgb(var(--color-text-muted))">職務
-        <input type="text" id="profile-title" value="${escapeHtml(p.title || "")}" style="width:100%;margin-top:4px">
-      </label>
-      <label style="font-size:12px;color:rgb(var(--color-text-muted))">クリアランス Level
-        <input type="number" id="profile-clearance" min="1" max="5" value="${p.clearance || 2}" style="width:100%;margin-top:4px">
-      </label>
-      <button type="button" class="btn btn-primary" id="btn-save-profile">保存</button>
+  const clearance = Math.min(5, Math.max(1, p.clearance || 2));
+  const site = GAME_DATA.siteUpgrades[state.siteLevel - 1];
+  const mapSite = currentMapSite(state);
+  const catalogMax = Object.keys(GAME_DATA.catalog).length;
+  const power = calcSquadPower(state);
+  const initial = escapeHtml((p.codename || "OP").slice(0, 2));
+  const serial = `JP-81 / ${mapSite.code} / OP-${escapeHtml((p.codename || "XXXX").replace(/[^A-Za-z0-9]/g, "").slice(0, 4).toUpperCase() || "XXXX")}`;
+  const clearNames = ["", "制限", "機密", "秘匿", "極大", "理事会"];
+  const pips = [1, 2, 3, 4, 5].map((lv) =>
+    `<button type="button" data-clearance="${lv}" class="${lv === clearance ? "on" : ""}">${lv}<small>${clearNames[lv]}</small></button>`
+  ).join("");
+  return `<div class="panel profile-dossier">
+    <div class="profile-kicker">CLASSIFIED // PERSONNEL FILE // JP-81</div>
+    <h2>オペレーター登録</h2>
+    <div class="profile-serial">${serial}</div>
+    <div class="profile-grid">
+      <div class="profile-id-card">
+        <div class="profile-portrait">
+          <i class="profile-tick tl"></i><i class="profile-tick tr"></i>
+          <i class="profile-tick bl"></i><i class="profile-tick br"></i>
+          <img src="assets/user/user.jpg" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <span class="ph">${initial}</span>
+          <span class="scan"></span>
+          <span class="profile-stamp" id="profile-clear-stamp">LEVEL-${clearance}</span>
+        </div>
+        <div class="profile-id-name" id="profile-preview-name">${escapeHtml(p.codename || "Researcher")}</div>
+        <div class="profile-id-title" id="profile-preview-title">Level-${clearance} ${escapeHtml(p.title || "収容担当")}</div>
+      </div>
+      <div class="profile-fields">
+        <div class="profile-field">
+          <label for="profile-codename">作戦コードネーム</label>
+          <input type="text" id="profile-codename" maxlength="24" value="${escapeHtml(p.codename || "")}" autocomplete="off">
+        </div>
+        <div class="profile-field">
+          <label for="profile-title">職務</label>
+          <input type="text" id="profile-title" maxlength="32" value="${escapeHtml(p.title || "")}" autocomplete="off">
+        </div>
+        <div class="profile-field">
+          <label>クリアランス</label>
+          <input type="hidden" id="profile-clearance" value="${clearance}">
+          <div class="profile-clear">${pips}</div>
+        </div>
+        <button type="button" class="btn btn-primary profile-save" id="btn-save-profile">記録を更新</button>
+      </div>
     </div>
-    <div style="margin-top:16px;font-size:12px;color:rgb(var(--color-text-muted))">
-      <p>収容体: ${state.units.length} / 図鑑: ${state.discovered.length}/${Object.keys(GAME_DATA.catalog).length} / 最深: ${state.maxFloor}</p>
+    <div class="profile-stats">
+      <div class="profile-stat"><b>${state.units.length}</b><span>収容体</span></div>
+      <div class="profile-stat"><b>${state.discovered.length}/${catalogMax}</b><span>図鑑</span></div>
+      <div class="profile-stat"><b>${state.maxFloor}</b><span>最深</span></div>
+      <div class="profile-stat"><b>${state.siteLevel}</b><span>${escapeHtml(site?.name || "司令部")}</span></div>
+      <div class="profile-stat"><b>${power.toLocaleString()}</b><span>戦力指数</span></div>
+      <div class="profile-stat"><b>${storageUsed(state)}/${state.storageSlots}</b><span>倉庫</span></div>
     </div>
   </div>`;
 }
@@ -4649,6 +4777,34 @@ function bindViewEvents() {
   if (btnCatalog) btnCatalog.onclick = doCatalog;
   const btnProfile = document.getElementById("btn-save-profile");
   if (btnProfile) btnProfile.onclick = saveProfile;
+  if (currentView === "profile") {
+    document.querySelectorAll("[data-clearance]").forEach((btn) => {
+      btn.onclick = () => {
+        const lv = Number(btn.dataset.clearance);
+        const hid = document.getElementById("profile-clearance");
+        if (hid) hid.value = String(lv);
+        document.querySelectorAll("[data-clearance]").forEach((b) => b.classList.toggle("on", b === btn));
+        const stamp = document.getElementById("profile-clear-stamp");
+        if (stamp) stamp.textContent = `LEVEL-${lv}`;
+        const titleIn = document.getElementById("profile-title");
+        const prev = document.getElementById("profile-preview-title");
+        if (prev) prev.textContent = `Level-${lv} ${titleIn?.value || "収容担当"}`;
+      };
+    });
+    const nameIn = document.getElementById("profile-codename");
+    const titleIn = document.getElementById("profile-title");
+    const previewName = document.getElementById("profile-preview-name");
+    const previewTitle = document.getElementById("profile-preview-title");
+    if (nameIn && previewName) {
+      nameIn.oninput = () => { previewName.textContent = nameIn.value.slice(0, 24) || "Researcher"; };
+    }
+    if (titleIn && previewTitle) {
+      titleIn.oninput = () => {
+        const lv = document.getElementById("profile-clearance")?.value || "1";
+        previewTitle.textContent = `Level-${lv} ${titleIn.value.slice(0, 32) || "収容担当"}`;
+      };
+    }
+  }
   if (currentView === "cross") {
     document.querySelectorAll("#cross-pick .unit-card[data-uid]").forEach((el) => {
       el.onclick = () => pickCross(Number(el.dataset.uid));
