@@ -2313,7 +2313,7 @@ function ensureMapProgress(state) {
 }
 
 function cloneSentries(list) {
-  const ammoMax = typeof SENTRY_AMMO_MAX === "number" ? SENTRY_AMMO_MAX : 100;
+  const ammoMax = typeof SENTRY_AMMO_MAX === "number" ? SENTRY_AMMO_MAX : 20;
   return (Array.isArray(list) ? list : []).map((s) => {
     const ammo = typeof s.ammo === "number"
       ? Math.max(0, Math.min(ammoMax, Math.floor(s.ammo)))

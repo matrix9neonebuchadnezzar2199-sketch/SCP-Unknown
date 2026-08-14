@@ -294,10 +294,10 @@ const layoutA = JSON.stringify(secA.rooms.map((r) => [r.code, r.x, r.y]));
 const layoutC = JSON.stringify(secC.rooms.map((r) => [r.code, r.x, r.y]));
 ok("sector site differs", layoutA !== layoutC, "same layout for different sites");
 
-const clonedAmmo = ctx.cloneSentries([{ x: 10, y: 20, ammo: 40 }]);
-eq("clone sentry ammo", clonedAmmo[0].ammo, 40);
+const clonedAmmo = ctx.cloneSentries([{ x: 10, y: 20, ammo: 12 }]);
+eq("clone sentry ammo", clonedAmmo[0].ammo, 12);
 const clonedDefault = ctx.cloneSentries([{ x: 1, y: 2 }]);
-eq("clone sentry ammo default", clonedDefault[0].ammo, 100);
+eq("clone sentry ammo default", clonedDefault[0].ammo, 20);
 const simExpire = { sentries: [{ x: 0, y: 0, ammo: 0, emptyAtMs: Date.now() - 11000 }] };
 ok("expire empty sentry", ctx.expireEmptySentries(simExpire) === true && simExpire.sentries.length === 0);
 const simKeep = { sentries: [{ x: 0, y: 0, ammo: 0, emptyAtMs: Date.now() }] };
@@ -363,7 +363,7 @@ def main() -> int:
     else:
         print("OK  sentry ammo hud")
     sector_src = (ROOT / "sector.js").read_text(encoding="utf-8")
-    if "const SENTRY_AMMO_MAX = 100" not in sector_src or "const SENTRY_EMPTY_MS = 10000" not in sector_src:
+    if "const SENTRY_AMMO_MAX = 20" not in sector_src or "const SENTRY_EMPTY_MS = 10000" not in sector_src:
         print("FAIL sector.js の残弾定数が無い")
         failed += 1
     else:

@@ -868,12 +868,15 @@ a { color: rgb(var(--color-secondary)); }
 
 /* 区画探索: 左 MAP / 右 ログ列。MAP は設定メニューまで1画面に収まる高さへ縮める */
 .sector-grid { display: grid; grid-template-columns: auto minmax(330px, 390px); gap: 12px; align-items: start; }
-.sector-grid.has-sentry-ammo { grid-template-columns: auto minmax(118px, 148px) minmax(330px, 390px); }
-@media (max-width: 1180px) { .sector-grid, .sector-grid.has-sentry-ammo { grid-template-columns: 1fr; } }
+@media (max-width: 1180px) { .sector-grid { grid-template-columns: 1fr; } }
 .sector-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .sector-side .label { margin-bottom: 5px; }
 .sector-side .battle-log { max-height: min(43.2vh, 324px); }
-.sentry-ammo-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.sentry-ammo-col {
+  position: absolute; top: 8px; right: 8px; z-index: 4;
+  display: flex; flex-direction: column; gap: 6px;
+  width: 128px; pointer-events: none;
+}
 .sentry-ammo-col[hidden] { display: none; }
 .sentry-ammo-card {
   background: rgb(var(--color-surface));
@@ -2051,17 +2054,15 @@ function updateRevealHud() {
 /** MAP 右の残弾表示。弾数・弾切れ状態が変わったときだけ DOM を組み直す */
 function updateSentryAmmoHud(force) {
   const col = document.getElementById("sentry-ammo-col");
-  const grid = document.getElementById("sector-grid");
   if (!col) {
     sentryAmmoHudKey = "";
     return;
   }
   const list = state.sentries || [];
-  const ammoMax = typeof SENTRY_AMMO_MAX === "number" ? SENTRY_AMMO_MAX : 100;
+  const ammoMax = typeof SENTRY_AMMO_MAX === "number" ? SENTRY_AMMO_MAX : 20;
   const key = list.map((s) => `${s.ammo}|${(s.ammo || 0) <= 0 ? 1 : 0}`).join(";");
   if (!force && key === sentryAmmoHudKey) return;
   sentryAmmoHudKey = key;
-  if (grid) grid.classList.toggle("has-sentry-ammo", list.length > 0);
   if (!list.length) {
     col.hidden = true;
     col.innerHTML = "";
@@ -2269,6 +2270,7 @@ function renderDashboard() {
           ${sentryPlaceMode ? `<div class="sentry-banner">解明した室内にセントリーガンを配置してください（${(state.sentries || []).length}/${SENTRY_MAX}）</div>` : ""}
           <div class="sector-hud" id="sector-reveal">解明 0/0</div>
           <div class="sector-hud-meta">SCAN // JP-81 // ${mapSite.code} // DEPTH ${String(floorData.depth).padStart(2, "0")}</div>
+          <div class="sentry-ammo-col" id="sentry-ammo-col" hidden></div>
         </div>
         <div class="explore-actions">
           <div class="tactics-row">
@@ -2285,7 +2287,6 @@ function renderDashboard() {
           </div>
         </div>
       </div>
-      <div class="sentry-ammo-col" id="sentry-ammo-col" hidden></div>
       <div class="sector-side">
         <div>
           <div class="label">索敵ログ</div>
@@ -3162,7 +3163,7 @@ function renderHelp() {
       <li>収集した部品と収容品は<strong>入手アイテム整理</strong>で倉庫へ入れるか、売却／分解する。上位クラフトと拠点拡張は収容品を残す必要がある。装備強化は予算と基礎部品。</li>
       <li><strong>工廠</strong>で部品と収容品から装備・アタッチメントを作り、<strong>拠点 → 装備</strong>で主人公に着せる。装備は個体ごとに強化（最大Lv.100、予算＋基礎部品）。メインウエポンのアタッチは個体ごとにレアとステ振れ幅が付く。</li>
       <li><strong>戦術 → 編成</strong>で主人公＋収容個体5体（計6）を揃えてから探索。</li>
-      <li><strong>戦術スキル → セントリーガン</strong>で解明済みの室内に砲台を置き、接近した敵を自動撃破する（最大2、残弾 100、弾切れ 10 秒後に撤去。砲台クリックで削除）。</li>
+      <li><strong>戦術スキル → セントリーガン</strong>で解明済みの室内に砲台を置き、接近した敵を自動撃破する（最大2、残弾 20、弾切れ 10 秒後に撤去。砲台クリックで削除）。</li>
       <li><strong>戦術 → 収容物体合成実験</strong>で収容体を親A／親Bへドラッグして合成。Rev とスキルを継承し、レシピがあれば交差種になる。</li>
       <li><strong>拠点強化</strong>のノードをクリックすると右側に詳細が出る。拡張は予算に加え基礎部品と収容品を消費する。</li>
       <li><strong>DB → 収容個体</strong>でカタログ化・再分類。</li>
