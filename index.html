@@ -2244,7 +2244,7 @@ const VIEW_TITLES = {
   craftGear: "装備制作",
   craftItem: "アイテム制作",
   squad: "編成",
-  cross: "収容物体合成実験",
+  cross: "収容体合成",
   chamber: "自動試験槽",
   codex: "異能図鑑",
   profile: "プロフィール",
@@ -3007,7 +3007,7 @@ function renderDashboard() {
       <div class="advice-actions">
         <button type="button" class="btn btn-sm btn-secondary" data-goto="items">アイテム</button>
         <button type="button" class="btn btn-sm btn-secondary" data-goto="codex">異能図鑑</button>
-        <button type="button" class="btn btn-sm btn-secondary" data-goto="cross">収容物体合成実験</button>
+        <button type="button" class="btn btn-sm btn-secondary" data-goto="cross">収容体合成</button>
         <button type="button" class="btn btn-sm btn-secondary" data-goto="squad">編成</button>
       </div>
     </div>` : ""}
@@ -3081,13 +3081,13 @@ function renderDashboard() {
         ${menuBtn("craftGear", "🛠", "装備制作", `×${craftableCountFor(CRAFT_SHOPS.craftGear.kinds)}`)}
         ${menuBtn("craftItem", "⚗", "アイテム制作", `×${craftableCountFor(CRAFT_SHOPS.craftItem.kinds)}`)}
         ${menuBtn("roster", "👾", "収容個体生成", `×${state.units.length}`)}
+        ${menuBtn("cross", "🧪", "収容体合成", `Rev.${maxRev}`)}
       </div>
     </div>
     <div class="menu-row">
       <div class="menu-cat tactical">戦術</div>
       <div class="menu-btns">
         ${menuBtn("squad", "⚔", "編成", `主人公+${squadUnits.length}/5`)}
-        ${menuBtn("cross", "🧪", "収容物体合成実験", `Rev.${maxRev}`)}
         ${menuBtn("chamber", "🔬", "試験槽", state.units.length >= GAME_DATA.chamberUnlockCount ? `${state.chamber.length}/${chamberMax}` : "要7体")}
         ${menuBtn("", "📋", "作戦立案", "準備中", true)}
         ${menuBtn("", "🛰", "遠征", "準備中", true)}
@@ -3957,7 +3957,7 @@ function renderHelp() {
       <li><strong>拠点 → 装備制作 / アイテム制作</strong>で部品と収容品から装備・アタッチ・アイテムを作り、<strong>拠点 → 装備</strong>で主人公に着せる。装備は個体ごとに強化（最大Lv.100、予算＋基礎部品）。メインウエポンのアタッチは個体ごとにレアとステ振れ幅が付く。</li>
       <li><strong>戦術 → 編成</strong>で主人公＋収容個体5体（計6）を揃えてから探索。</li>
       <li><strong>戦術スキル → セントリーガン</strong>で解明済みの室内に砲台を置き、円内の敵へ自動射撃する（最大2、残弾 20、弾切れ 10 秒後に撤去。砲台クリックで削除）。展開チームは進行方向の迎撃錐に入った敵へ連射する。HPが尽きるとステージMAPの前線指揮所からオスプレイが現在地点へ再展開する。</li>
-      <li><strong>戦術 → 収容物体合成実験</strong>で収容体を親A／親Bへドラッグして合成。Rev とスキルを継承し、レシピがあれば交差種になる。</li>
+      <li><strong>拠点 → 収容体合成</strong>で収容体を親A／親Bへドラッグして合成。Rev とスキルを継承し、レシピがあれば交差種になる。</li>
       <li><strong>拠点強化</strong>のノードをクリックすると右側に詳細が出る。拡張は予算に加え基礎部品と収容品を消費する。</li>
       <li><strong>拠点 → 収容個体生成</strong>でカタログ化・再分類。</li>
       <li><strong>DB → 異能図鑑</strong>でポートレートカードを閲覧。クラス／発見状態／原種・交差種を絞る。</li>
@@ -4224,7 +4224,7 @@ function renderCross() {
     <div class="fusion-lab-head">
       <div>
         <div class="fusion-kicker">THAUMIEL PROTOCOL // CROSS-TEST</div>
-        <h2>収容物体合成実験</h2>
+        <h2>収容体合成</h2>
       </div>
       <div class="fusion-lab-meta">
         <span>SPECIMEN ${state.units.length}</span>
@@ -4370,7 +4370,7 @@ function renderChamber() {
     const pct = Math.round((state.units.length / need) * 100);
     return `<div class="panel">
       <h2>自動試験槽 — 未解放</h2>
-      <p style="font-size:13px;color:rgb(var(--color-text-muted))">収容体 ${need} 体以上で解放（現在 ${state.units.length}）。収容物体合成実験やカタログ化で増やす。</p>
+      <p style="font-size:13px;color:rgb(var(--color-text-muted))">収容体 ${need} 体以上で解放（現在 ${state.units.length}）。収容体合成やカタログ化で増やす。</p>
       <div class="meter"><div class="meter-head"><span>解放まで</span><span>${state.units.length} / ${need}</span></div>
       <div class="meter-bar"><div class="meter-fill teal" style="width:${pct}%"></div></div></div>
     </div>`;

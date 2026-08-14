@@ -511,6 +511,9 @@ def main() -> int:
     if 'menuBtn("craftGear"' not in html or 'menuBtn("craftItem"' not in html or "収容個体生成" not in html:
         print("FAIL 拠点の装備制作／アイテム制作／収容個体生成が無い")
         failed += 1
+    elif 'menuBtn("cross"' not in html.split("menu-cat tactical", 1)[0] or '"収容体合成"' not in html:
+        print("FAIL 拠点の収容体合成が無い（戦術側に残っている）")
+        failed += 1
     elif 'menuBtn("alchemy"' in html:
         print("FAIL 戦術に SCP-914（alchemy）メニューが残っている")
         failed += 1

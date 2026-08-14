@@ -2005,7 +2005,7 @@ function crossTest(state, parentAUid, parentBUid) {
   const childCat = GAME_DATA.catalog[childCatalogId];
   return {
     ok: true,
-    msg: `収容物体合成実験成功: ${childCat.scp} ${childCat.name} (Rev+${revGain} → Rev.${childRev})`,
+    msg: `収容体合成成功: ${childCat.scp} ${childCat.name} (Rev+${revGain} → Rev.${childRev})`,
     child,
     revGain,
   };
@@ -2763,7 +2763,7 @@ function breachAdvice(state) {
     return `編成が主人公+${squadSize}/5 です。収容個体をカタログ化して5枠を埋めてください。数の不利はレベルでは覆せません。`;
   }
   if (state.units.every((u) => u.rev < 1)) {
-    return "収容物体合成実験で Rev を上げてください。掛け合わせると基礎値が跳ね上がります。";
+    return "拠点の収容体合成で Rev を上げてください。掛け合わせると基礎値が跳ね上がります。";
   }
   if (ownedGearCount(state) < 3) {
     return "主人公の装備が薄いです。拠点の装備制作で装備を作成し、拠点→装備から着用してください。";
