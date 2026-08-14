@@ -1513,7 +1513,7 @@ async function syncCloudSave() {
     const cloud = snap.val();
     if (!cloud?.data) {
       pushCloudSave(state);
-      toast("クラウドにセーブを作成しました");
+      toast("ゲストのセーブをクラウドへ引き継ぎました");
       return;
     }
     const localTs = state.savedAt || 0;

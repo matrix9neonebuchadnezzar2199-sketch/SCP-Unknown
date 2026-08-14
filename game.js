@@ -6,6 +6,12 @@ const SAVE_KEY = "scp-unknown-save-v1";
 const SECTOR_BOOST_MS = 60000;
 
 /** @returns {object} fresh game state */
+/** ゲスト用コードネーム。アクセスごとにユニークになるよう UUID から採番 */
+function newGuestCodename() {
+  const uuid = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`).replace(/-/g, "");
+  return `Guest-${uuid.slice(0, 6).toUpperCase()}`;
+}
+
 function createNewState() {
   const starters = GAME_DATA.starters.map((cid, i) => {
     const u = createUnit(cid, 1, 0);
@@ -47,7 +53,7 @@ function createNewState() {
     breachCooldownUntil: 0,
     sentries: [],
     revealedRooms: [],
-    profile: { codename: "D-Class-427", clearance: 2, title: "収容担当" },
+    profile: { codename: newGuestCodename(), clearance: 2, title: "収容担当" },
     chatLog: [
       { channel: "all", user: "指揮官", text: "異常を戦力化せよ。Thaumiel運用を維持すること。", ts: Date.now() },
       { channel: "all", user: "研究員クロサワ", text: "深層は違反リスクが高い。編成を整えてから潜れ。", ts: Date.now() },
@@ -1985,7 +1991,12 @@ function sendChat(state, text, channel = "all") {
 
 function migrateState(state) {
   if (!state.profile) {
-    state.profile = { codename: "D-Class-427", clearance: 2, title: "収容担当" };
+    state.profile = { codename: newGuestCodename(), clearance: 2, title: "収容担当" };
+  }
+  // 旧デフォルト名のままの既存セーブは未カスタマイズとみなしてゲスト採番へ（一度きり）
+  if (!state.guestCodenameMigrated && state.profile.codename === "D-Class-427") {
+    state.profile.codename = newGuestCodename();
+    state.guestCodenameMigrated = true;
   }
   // 掃討率制（探索ボタン廃止）への移行
   if (typeof state.clearKills !== "number") state.clearKills = 0;
