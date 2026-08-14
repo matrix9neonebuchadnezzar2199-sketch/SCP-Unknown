@@ -722,6 +722,7 @@ a { color: rgb(var(--color-secondary)); }
   border: 1px solid rgb(var(--color-frame)); border-radius: var(--radius-card); padding: 16px 18px;
 }
 .confirm-box h4 { font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 8px; letter-spacing: 0.08em; }
+.confirm-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
 .confirm-box p { font-size: 12px; line-height: 1.55; color: rgb(var(--color-text-muted)); margin-bottom: 12px; }
 .confirm-box .confirm-body-html { font-size: 12px; line-height: 1.55; color: rgb(var(--color-text-muted)); margin-bottom: 12px; }
 .confirm-box.wide { width: min(480px, 100%); }
@@ -1393,6 +1394,24 @@ a { color: rgb(var(--color-secondary)); }
 .map-poi.active .pin {
   border-color: #c4a34a; background: #c4a34a; box-shadow: 0 0 8px #c4a34a;
 }
+.map-osprey {
+  position: absolute; width: 52px; height: 52px;
+  transform: translate(-50%, -210%);
+  pointer-events: none; z-index: 4;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.9));
+}
+.map-osprey.fly {
+  transition: left 0.9s cubic-bezier(0.45, 0.05, 0.2, 1), top 0.9s cubic-bezier(0.45, 0.05, 0.2, 1);
+}
+.map-osprey img {
+  width: 100%; height: 100%; object-fit: contain; display: block;
+  animation: osprey-bob 2.4s ease-in-out infinite;
+}
+.map-osprey.fly img { animation: none; }
+@keyframes osprey-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
 .map-site-blurb {
   margin-top: 10px; padding: 10px 12px;
   border: 1px solid rgb(var(--color-frame)); background: rgb(var(--color-background));
@@ -1810,6 +1829,7 @@ let attachFilterRarity = "ALL";
 let attachFilterSort = "rarity";
 let sentryPlaceMode = false;
 let sentryPreview = null;
+let mapDeployLock = false;
 let sentryBusy = false;
 let sentryAmmoHudKey = "";
 let codexClass = "ALL";
@@ -2260,10 +2280,13 @@ function renderMap() {
   const cur = currentMapSite(state);
   return `<div class="panel city-map-panel">
     ${rarityHudHtml(state.floor)}
-    <p class="city-map-note">JP-81 // セキュリティ施設 — 展開地点を選択（真鍮が現在地点）。各地点の収容層進行は独立。</p>
+    <p class="city-map-note">JP-81 // 地点クリックで展開確認。オスプレイは現在探索中の上空。各地点の進行は独立。</p>
     <div class="city-map">
       <img src="assets/map/SCP-TOKYO.jpg" alt="SCP-Unknown TOKYO">
       ${pois}
+      <div id="map-osprey" class="map-osprey" style="left:${cur.x}%;top:${cur.y}%" title="展開中オスプレイ">
+        <img src="assets/map/osprey.png" alt="オスプレイ">
+      </div>
     </div>
     <div class="map-site-blurb">
       <strong>${escapeHtml(siteLabel(cur))}</strong>
@@ -2271,6 +2294,56 @@ function renderMap() {
       <p>${escapeHtml(cur.desc)}</p>
     </div>
   </div>`;
+}
+
+/** オスプレイを目標地点へ飛ばしてから done。同一座標なら即 done */
+function flyOspreyTo(site, done) {
+  const el = document.getElementById("map-osprey");
+  if (!el) { done(); return; }
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    el.removeEventListener("transitionend", onEnd);
+    done();
+  };
+  const onEnd = (e) => {
+    if (e.propertyName !== "left" && e.propertyName !== "top") return;
+    finish();
+  };
+  el.addEventListener("transitionend", onEnd);
+  el.classList.add("fly");
+  void el.offsetWidth;
+  el.style.left = `${site.x}%`;
+  el.style.top = `${site.y}%`;
+  setTimeout(finish, 1100);
+}
+
+function confirmMapSite(siteId) {
+  if (mapDeployLock) return;
+  const site = GAME_DATA.mapSites.find((s) => s.id === siteId);
+  if (!site) return;
+  const current = currentMapSite(state);
+  const same = site.id === current.id;
+  const body = same
+    ? `${siteLabel(site)} の区画探索を開始しますか。`
+    : `${siteLabel(site)} へオスプレイを展開しますか。`;
+  showConfirm({ title: same ? "区画探索" : "展開確認", body }).then((ok) => {
+    if (!ok) return;
+    const go = () => {
+      mapDeployLock = false;
+      if (currentView !== "map") return;
+      const r = selectMapSite(state, site.id);
+      toast(r.msg);
+      if (r.ok) {
+        sectorSim = null;
+        goView("dashboard");
+      }
+    };
+    if (same) { go(); return; }
+    mapDeployLock = true;
+    flyOspreyTo(site, go);
+  });
 }
 
 function renderDashboard() {
@@ -4031,14 +4104,7 @@ function bindViewEvents() {
   const btnMap = document.getElementById("btn-map-select");
   if (btnMap) btnMap.onclick = () => goView("map");
   document.querySelectorAll("[data-map-site]").forEach((btn) => {
-    btn.onclick = () => {
-      const r = selectMapSite(state, btn.dataset.mapSite);
-      toast(r.msg);
-      if (r.ok) {
-        sectorSim = null;
-        goView("dashboard");
-      }
-    };
+    btn.onclick = () => confirmMapSite(btn.dataset.mapSite);
   });
   const btnBoost = document.getElementById("btn-boost");
   if (btnBoost) btnBoost.onclick = doBoost;

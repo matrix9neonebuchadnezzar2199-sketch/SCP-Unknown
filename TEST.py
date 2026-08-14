@@ -82,6 +82,11 @@ ok("floors", G.floors.length === 50, `len=${G.floors.length}`);
 ok("starters", G.starters.length === 3);
 for (const sid of G.starters) ok(`starter ${sid}`, !!G.catalog[sid]);
 ok("mapSites", Array.isArray(G.mapSites) && G.mapSites.length >= 1);
+const sMap = ctx.createNewState();
+const pick = G.mapSites.find((s) => s.id !== sMap.mapSite) || G.mapSites[0];
+const rMap = ctx.selectMapSite(sMap, pick.id);
+ok("selectMapSite", rMap.ok, rMap.msg);
+eq("mapSite set", sMap.mapSite, pick.id);
 
 for (const [sid, sk] of Object.entries(G.skills)) {
   ok(`skill.id ${sid}`, sk.id === sid);
@@ -393,6 +398,18 @@ def main() -> int:
         failed += 1
     else:
         print("OK  sector shots")
+
+    if 'id="map-osprey"' not in html or "function flyOspreyTo" not in html or "function confirmMapSite" not in html:
+        print("FAIL MAP オスプレイ展開（map-osprey / flyOspreyTo / confirmMapSite）が無い")
+        failed += 1
+    else:
+        print("OK  map osprey deploy")
+    osprey_png = ROOT / "assets" / "map" / "osprey.png"
+    if not osprey_png.is_file():
+        print("FAIL assets/map/osprey.png が無い")
+        failed += 1
+    else:
+        print("OK  osprey png")
 
     game = (ROOT / "game.js").read_text(encoding="utf-8")
     for needle, label in (
