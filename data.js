@@ -3,7 +3,7 @@
  * SCP articles © respective authors on SCP Wiki.
  */
 const GAME_DATA = {
-  version: "0.3.5",
+  version: "0.3.6",
   staminaMaxBase: 30,
   staminaRegenMs: 120000, // 2 min per token
   chamberUnlockCount: 7,
@@ -903,6 +903,16 @@ const GAME_DATA = {
       desc: "山奥の極めて危険なKeterクラスを取り囲む武装サイト。強力な戦力が常駐。",
       x: 70, y: 73 },
   ],
+
+  /** ステージ選択MAP上の再展開拠点。mapSites に入れない（探索地点ではない） */
+  forwardHq: {
+    id: "fwd-hq",
+    name: "前線指揮所",
+    code: "HQ",
+    x: 57,
+    y: 27,
+    desc: "展開チーム全滅時のオスプレイ再展開拠点。サイト-8100 近傍。",
+  },
 
   /** 施設 kind → 探索時の敵カタログ。未登録 kind は mixed に落ちる */
   siteEnemyPools: {

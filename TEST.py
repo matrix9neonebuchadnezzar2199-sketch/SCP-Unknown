@@ -483,11 +483,27 @@ def main() -> int:
         failed += 1
     else:
         print("OK  sentry green beacon")
-    if "function drawTeamCone" not in sector_src or "前線指揮所" not in sector_src or "const TEAM_BURST_COUNT = 10" not in sector_src:
-        print("FAIL 迎撃錐／MAP HP／前線指揮所が無い")
+    if "function drawTeamCone" not in sector_src or "const TEAM_RGB" not in sector_src or "const TEAM_BURST_COUNT = 10" not in sector_src:
+        print("FAIL 迎撃錐／MAP HP／チーム青RGBが無い")
         failed += 1
     else:
-        print("OK  team cone and HQ")
+        print("OK  team cone and TEAM_RGB")
+    if "function drawHq" in sector_src or "function drawHqOsprey" in sector_src:
+        print("FAIL 区画MAPに前線指揮所描画が残っている")
+        failed += 1
+    else:
+        print("OK  sector HQ draw removed")
+    data_src = (ROOT / "data.js").read_text(encoding="utf-8")
+    if "forwardHq:" not in data_src or "前線指揮所" not in data_src:
+        print("FAIL data.js に forwardHq（前線指揮所）が無い")
+        failed += 1
+    else:
+        print("OK  forwardHq landmark")
+    if "function beginHqRecall" not in html or 'class="map-hq"' not in html:
+        print("FAIL ステージMAPの前線指揮所／beginHqRecall が無い")
+        failed += 1
+    else:
+        print("OK  city-map HQ recall")
 
     if "function acquireShots" not in sector_src or "function drawShots" not in sector_src:
         print("FAIL 射撃演出（acquireShots / drawShots）が無い")

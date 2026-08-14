@@ -27,6 +27,7 @@ const CONTACT_RADIUS = 13;
 /** チーム周囲の現在視界。永続解明は部屋単位（この円が部屋に触れたら開く） */
 const LIGHT_RADIUS = 80;
 /** 進行方向の迎撃錐。解明円とは別に射撃判定に使う */
+const TEAM_RGB = "90,150,200";
 const TEAM_FOV_DEG = 52;
 const TEAM_FOV_RANGE = LIGHT_RADIUS;
 const TEAM_BURST_COUNT = 10;
@@ -38,7 +39,6 @@ const ENEMY_MAP_HP = 10;
 const TEAM_HP_BASE = 80;
 const TEAM_HP_PER_MEMBER = 20;
 const ENEMY_MELEE_DPS = 12;
-const HQ_RESPAWN_SEC = 3.2;
 /** 赤がチーム位置を再追尾する間隔。速度は上げず接触頻度だけ稼ぐ */
 const RED_SEEK_INTERVAL = 1.2;
 const SENTRY_MAX = 2;
@@ -430,9 +430,13 @@ function updateSectorSim(sim, state, dt) {
 
   const team = teamAgent(sim);
   tickFireCds(sim, dt);
+  let wiped = false;
   if (!sim.boss) {
     if (applyMelee(sim, dt)) stateChanged = true;
-    if (beginTeamWipeIfNeeded(sim)) stateChanged = true;
+    if (beginTeamWipeIfNeeded(sim)) {
+      stateChanged = true;
+      wiped = true;
+    }
     if (respawnTeamIfReady(sim)) stateChanged = true;
   }
   if (!sim.boss) {
@@ -481,7 +485,7 @@ function updateSectorSim(sim, state, dt) {
       sim.flashes.push({ x: hit.x, y: hit.y, age: 0, big: true });
       sim.events.push(`[${sim.sector.rooms[hit.roomId]?.code || "??"}] 収容違反体と接触 — 交戦開始`);
     }
-    return { changed: stateChanged, breach: null, bossHit: !!hit };
+    return { changed: stateChanged, breach: null, bossHit: !!hit, wiped: false };
   }
 
   if (updateShots(sim, state, dt)) stateChanged = true;
@@ -491,7 +495,7 @@ function updateSectorSim(sim, state, dt) {
   sim.flashes = sim.flashes.filter((f) => f.age < 0.8);
   if (sim.events.length > 40) sim.events = sim.events.slice(-40);
 
-  return { changed: stateChanged, breach, bossHit: false };
+  return { changed: stateChanged, breach, bossHit: false, wiped };
 }
 
 function redIsBusy(r) {
@@ -570,10 +574,8 @@ function beginTeamWipeIfNeeded(sim) {
   team.aimTarget = null;
   team.burstLeft = 0;
   sim.teamDown = true;
-  sim.respawnAt = sim.time + HQ_RESPAWN_SEC;
-  const hq = sim.hq;
-  const roomName = hq && sim.sector.rooms[hq.roomId] ? sim.sector.rooms[hq.roomId].code : "HQ";
-  sim.events.push(`[${roomName}] 展開チームが撤退 — 前線指揮所へ再展開`);
+  sim.respawnAt = Infinity;
+  sim.events.push("展開チームが撤退 — 前線指揮所へオスプレイ再展開");
   return true;
 }
 
@@ -591,7 +593,7 @@ function respawnTeamIfReady(sim) {
   team.aimTarget = null;
   team.burstLeft = 0;
   sim.teamDown = false;
-  sim.events.push("オスプレイが前線指揮所に展開 — 巡回を再開");
+  sim.events.push("オスプレイが再展開 — 巡回を再開");
   return true;
 }
 
@@ -772,8 +774,8 @@ function drawTeamLight(ctx, team) {
   ctx.beginPath();
   ctx.arc(team.x, team.y, LIGHT_RADIUS, 0, Math.PI * 2);
   ctx.fill();
-  ctx.strokeStyle = "rgba(196,163,74,0.35)";
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = `rgba(${TEAM_RGB},0.75)`;
+  ctx.lineWidth = 1.4;
   ctx.beginPath();
   ctx.arc(team.x, team.y, LIGHT_RADIUS, 0, Math.PI * 2);
   ctx.stroke();
@@ -793,9 +795,9 @@ function drawTeamCone(ctx, team) {
   ctx.lineTo(x1, y1);
   ctx.lineTo(x2, y2);
   ctx.closePath();
-  ctx.fillStyle = "rgba(196,163,74,0.12)";
+  ctx.fillStyle = `rgba(${TEAM_RGB},0.16)`;
   ctx.fill();
-  ctx.strokeStyle = "rgba(196,163,74,0.55)";
+  ctx.strokeStyle = `rgba(${TEAM_RGB},0.7)`;
   ctx.lineWidth = 1.2;
   ctx.stroke();
 }
@@ -809,47 +811,6 @@ function drawHpBar(ctx, x, y, hp, hpMax, rgb) {
   ctx.fillRect(x - w / 2, y0, w, h);
   ctx.fillStyle = `rgb(${rgb})`;
   ctx.fillRect(x - w / 2, y0, w * Math.max(0, Math.min(1, hp / hpMax)), h);
-}
-
-function drawHq(ctx, sim) {
-  const hq = sim.hq;
-  if (!hq) return;
-  if (!isRoomRevealed(sim, hq.roomId)) return;
-  ctx.fillStyle = "rgba(90,150,200,0.28)";
-  ctx.strokeStyle = "rgba(140,190,220,0.9)";
-  ctx.lineWidth = 1.4;
-  ctx.fillRect(hq.x - 9, hq.y - 7, 18, 14);
-  ctx.strokeRect(hq.x - 9, hq.y - 7, 18, 14);
-  ctx.fillStyle = "rgba(200,220,240,0.92)";
-  ctx.font = "9px Consolas, monospace";
-  ctx.fillText("前線指揮所", hq.x + 12, hq.y + 3);
-}
-
-let sectorOspreyImg = null;
-function sectorOspreyImage() {
-  if (typeof Image === "undefined") return null;
-  if (sectorOspreyImg) return sectorOspreyImg;
-  sectorOspreyImg = new Image();
-  sectorOspreyImg.src = "assets/map/osprey.png";
-  return sectorOspreyImg;
-}
-
-function drawHqOsprey(ctx, sim) {
-  if (!sim.teamDown || !sim.hq) return;
-  const x = sim.hq.x;
-  const y = sim.hq.y + Math.sin(sim.time * 3) * 3;
-  const img = sectorOspreyImage();
-  if (img && img.complete && img.naturalWidth > 0) {
-    ctx.drawImage(img, x - 18, y - 22, 36, 28);
-    return;
-  }
-  ctx.fillStyle = "rgba(196,163,74,0.85)";
-  ctx.beginPath();
-  ctx.moveTo(x - 10, y + 6);
-  ctx.lineTo(x, y - 8);
-  ctx.lineTo(x + 10, y + 6);
-  ctx.closePath();
-  ctx.fill();
 }
 
 /** 未解明は黒、解明済みは残像、円内だけ明るくする */
@@ -893,7 +854,6 @@ function drawSector(ctx, sim) {
     drawRoomShape(ctx, room, live);
   }
 
-  drawHq(ctx, sim);
   if (team && !team.dead) {
     drawTeamLight(ctx, team);
     drawTeamCone(ctx, team);
@@ -902,7 +862,6 @@ function drawSector(ctx, sim) {
   const visibleReds = sim.reds.filter((r) => !r.dead && (r.dying || isPointLit(sim, r.x, r.y)));
   drawAgents(ctx, visibleReds, "176,48,40");
   drawAgents(ctx, sim.blues, "90,150,200");
-  drawHqOsprey(ctx, sim);
   drawShots(ctx, sim);
 
   const placed = (sim.sentries || []).filter((s) => {
@@ -1070,7 +1029,7 @@ function drawAgents(ctx, agents, rgb) {
     const dyingT = a.dying ? Math.min(1, a.dyingAge / RED_DYING_SEC) : 0;
     const fade = 1 - dyingT * 0.82;
     const sizeMul = (a.isOperator ? 1.35 : 1) * (1 + dyingT * 0.7);
-    const agentRgb = a.isOperator ? "196,163,74" : rgb;
+    const agentRgb = a.isOperator ? TEAM_RGB : rgb;
 
     for (let i = 0; i < a.trail.length; i++) {
       const p = a.trail[i];

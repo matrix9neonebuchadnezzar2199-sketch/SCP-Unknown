@@ -1424,8 +1424,7 @@ a { color: rgb(var(--color-secondary)); }
 .btn-sentry.placing { border-color: rgb(var(--color-accent)); color: rgb(var(--color-accent)); }
 .sector-legend i.dot.gold { background: #c4a34a; box-shadow: 0 0 6px #c4a34a; }
 .sector-legend i.dot.op {
-  background: #c4a34a; box-shadow: 0 0 6px #c4a34a;
-  border: 2px solid #5a96c8;
+  background: #5a96c8; box-shadow: 0 0 6px #5a96c8;
 }
 .sector-legend i.dot.sentry {
   background: transparent; box-shadow: none;
@@ -1477,6 +1476,22 @@ a { color: rgb(var(--color-secondary)); }
 .map-poi.active .pin {
   border-color: #c4a34a; background: #c4a34a; box-shadow: 0 0 8px #c4a34a;
 }
+.map-hq {
+  position: absolute; transform: translate(-50%, -110%);
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  pointer-events: none; z-index: 3;
+}
+.map-hq .pin {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #5a96c8; border: 2px solid #c8e0f0;
+  box-shadow: 0 0 10px #5a96c8;
+}
+.map-hq .tag {
+  font-family: Consolas, monospace; font-size: 10px; letter-spacing: 0.08em;
+  color: #c8e0f0; background: rgba(8, 16, 28, 0.82);
+  border: 1px solid #5a96c8; padding: 1px 6px; white-space: nowrap;
+}
+.map-hq .tag small { display: block; font-size: 9px; color: #8ab4d4; letter-spacing: 0.04em; }
 .map-osprey {
   position: absolute; width: 52px; height: 52px;
   transform: translate(-50%, -210%);
@@ -1915,6 +1930,7 @@ let attachFilterSort = "rarity";
 let sentryPlaceMode = false;
 let sentryPreview = null;
 let mapDeployLock = false;
+let hqRecallLock = false;
 let sentryBusy = false;
 let sentryAmmoHudKey = "";
 let codexClass = "ALL";
@@ -2200,11 +2216,16 @@ function sectorFrame(ts) {
     return;
   }
 
-  const { changed, breach, bossHit } = updateSectorSim(sectorSim, state, dt);
+  const { changed, breach, bossHit, wiped } = updateSectorSim(sectorSim, state, dt);
   if (canvas) drawSector(canvas.getContext("2d"), sectorSim);
 
   if (bossHit) {
     beginBossPlayback();
+    sectorRaf = requestAnimationFrame(sectorFrame);
+    return;
+  }
+  if (wiped) {
+    beginHqRecall();
     sectorRaf = requestAnimationFrame(sectorFrame);
     return;
   }
@@ -2327,9 +2348,10 @@ function updateClearGauge() {
   }
 }
 
-function meterBar(label, value, max, cssClass, suffix = "") {
+function meterBar(label, value, max, cssClass, suffix = "", title = "") {
   const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
-  return `<div class="meter">
+  const tip = title ? ` title="${escapeHtml(title)}"` : "";
+  return `<div class="meter"${tip}>
     <div class="meter-head"><span>${label}</span><span>${value}${suffix} / ${max}${suffix}</span></div>
     <div class="meter-bar"><div class="meter-fill ${cssClass}" style="width:${pct}%"></div></div>
   </div>`;
@@ -2370,12 +2392,20 @@ function renderMap() {
     </button>`;
   }).join("");
   const cur = currentMapSite(state);
+  const hq = GAME_DATA.forwardHq;
+  const hqPin = hq
+    ? `<div class="map-hq" style="left:${hq.x}%;top:${hq.y}%" title="${escapeHtml(hq.name)} — ${escapeHtml(hq.desc)}">
+      <span class="pin"></span>
+      <span class="tag">${escapeHtml(hq.code)}<small>${escapeHtml(hq.name)}</small></span>
+    </div>`
+    : "";
   return `<div class="panel city-map-panel">
     ${rarityHudHtml(state.floor)}
-    <p class="city-map-note">JP-81 // 地点クリックで展開確認。オスプレイは現在探索中の上空。各地点の進行は独立。</p>
+    <p class="city-map-note">JP-81 // 地点クリックで展開確認。全滅時は前線指揮所（HQ）からオスプレイ再展開。各地点の進行は独立。</p>
     <div class="city-map">
       <img src="assets/map/SCP-TOKYO.jpg" alt="SCP-Unknown TOKYO">
       ${pois}
+      ${hqPin}
       <div id="map-osprey" class="map-osprey" style="left:${cur.x}%;top:${cur.y}%" title="展開中オスプレイ">
         <img src="assets/map/osprey.png" alt="オスプレイ">
       </div>
@@ -2409,6 +2439,35 @@ function flyOspreyTo(site, done) {
   el.style.left = `${site.x}%`;
   el.style.top = `${site.y}%`;
   setTimeout(finish, 1100);
+}
+
+/** 全滅後、ステージMAPの前線指揮所から現在地点へオスプレイを飛ばして再開する */
+function beginHqRecall() {
+  if (hqRecallLock) return;
+  hqRecallLock = true;
+  mapDeployLock = true;
+  const site = currentMapSite(state);
+  const hq = GAME_DATA.forwardHq;
+  goView("map");
+  const el = document.getElementById("map-osprey");
+  if (el && hq) {
+    el.classList.remove("fly");
+    el.style.transition = "none";
+    el.style.left = `${hq.x}%`;
+    el.style.top = `${hq.y}%`;
+    void el.offsetWidth;
+    el.style.transition = "";
+  }
+  toast("展開チームが撤退 — 前線指揮所へ再展開");
+  flyOspreyTo(site, () => {
+    mapDeployLock = false;
+    hqRecallLock = false;
+    if (sectorSim) {
+      sectorSim.respawnAt = sectorSim.time;
+      respawnTeamIfReady(sectorSim);
+    }
+    goView("dashboard");
+  });
 }
 
 function confirmMapSite(siteId) {
@@ -2545,8 +2604,8 @@ function renderDashboard() {
             ${boostLeft > 0 ? `<span class="boost-chip">加速中 ${boostLeft}s</span>` : ""}
           </div>
           <div class="dash-status-meters">
-            ${meterBar("収容安定度", containment, 100, "teal", "%")}
-            ${meterBar("違反リスク推定", breachRisk, 100, breachRisk > 70 ? "red" : "amber", "%")}
+            ${meterBar("収容安定度", containment, 100, "teal", "%", "拠点Lvに応じた収容体制の見た目指標。戦闘・ドロップには影響しない。")}
+            ${meterBar("違反リスク推定", breachRisk, 100, breachRisk > 70 ? "red" : "amber", "%", "深度と拠点Lvから見た違反の見た目指標。戦闘・ドロップには影響しない。")}
           </div>
         </div>
       </div>
@@ -3418,7 +3477,7 @@ function renderHelp() {
       <li>収集した部品と収容品は<strong>入手アイテム整理</strong>で倉庫へ入れるか、売却／分解する。上位クラフトと拠点拡張は収容品を残す必要がある。装備強化は予算と基礎部品。</li>
       <li><strong>工廠</strong>で部品と収容品から装備・アタッチメントを作り、<strong>拠点 → 装備</strong>で主人公に着せる。装備は個体ごとに強化（最大Lv.100、予算＋基礎部品）。メインウエポンのアタッチは個体ごとにレアとステ振れ幅が付く。</li>
       <li><strong>戦術 → 編成</strong>で主人公＋収容個体5体（計6）を揃えてから探索。</li>
-      <li><strong>戦術スキル → セントリーガン</strong>で解明済みの室内に砲台を置き、円内の敵へ自動射撃する（最大2、残弾 20、弾切れ 10 秒後に撤去。砲台クリックで削除）。展開チームは進行方向の迎撃錐に入った敵へ連射する。HPが尽きると前線指揮所のオスプレイから再開する。</li>
+      <li><strong>戦術スキル → セントリーガン</strong>で解明済みの室内に砲台を置き、円内の敵へ自動射撃する（最大2、残弾 20、弾切れ 10 秒後に撤去。砲台クリックで削除）。展開チームは進行方向の迎撃錐に入った敵へ連射する。HPが尽きるとステージMAPの前線指揮所からオスプレイが現在地点へ再展開する。</li>
       <li><strong>戦術 → 収容物体合成実験</strong>で収容体を親A／親Bへドラッグして合成。Rev とスキルを継承し、レシピがあれば交差種になる。</li>
       <li><strong>拠点強化</strong>のノードをクリックすると右側に詳細が出る。拡張は予算に加え基礎部品と収容品を消費する。</li>
       <li><strong>DB → 収容個体</strong>でカタログ化・再分類。</li>
