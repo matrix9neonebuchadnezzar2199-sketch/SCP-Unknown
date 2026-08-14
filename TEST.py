@@ -469,6 +469,11 @@ def main() -> int:
         failed += 1
     else:
         print("OK  battle result layout")
+    if 'class="floor-now"' not in html:
+        print("FAIL 区画探索の深度数字（floor-now）が無い")
+        failed += 1
+    else:
+        print("OK  floor depth yellow")
     if ".squad-mini .icon, .squad-mini .catalog-art" not in html or "width: 80px; height: 80px" not in html:
         print("FAIL 展開部隊アイコン枠が 80px になっていない")
         failed += 1

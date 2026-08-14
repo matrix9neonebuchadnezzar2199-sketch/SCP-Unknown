@@ -1440,6 +1440,7 @@ a { color: rgb(var(--color-secondary)); }
 
 /* Sector scan map */
 .sector-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+.sector-head .floor-now { color: #ffd93d; }
 .sector-legend { margin-left: auto; display: flex; gap: 12px; font-size: 11px; color: rgb(var(--color-text-muted)); }
 .sector-legend i.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
 .sector-legend i.dot.blue { background: #5a96c8; box-shadow: 0 0 6px #5a96c8; }
@@ -2671,7 +2672,7 @@ function renderDashboard() {
       <button type="button" class="btn btn-secondary btn-map-select" id="btn-map-select">MAP選択</button>
       <div>
         <div class="label" style="margin-bottom:2px">区画探索 — ${escapeHtml(siteLabel(mapSite))}</div>
-        <h2 style="margin:0;font-family:var(--font-display);font-size:1.2rem;letter-spacing:0.1em">${floorData.name}</h2>
+        <h2 style="margin:0;font-family:var(--font-display);font-size:1.2rem;letter-spacing:0.1em">${escapeHtml(mapSite.code)}-<span class="floor-now">${floorData.depth}</span>/${GAME_DATA.floors.length}</h2>
         <p style="font-size:11px;color:rgb(var(--color-text-muted))">${escapeHtml(mapSite.desc)} — JP-81 / ${mapSite.code} — 深度 ${floorData.depth} / 最深 ${state.maxFloor} — 敵性反応 ${floorData.enemies.length} 系統</p>
       </div>
       <div class="sector-legend">
