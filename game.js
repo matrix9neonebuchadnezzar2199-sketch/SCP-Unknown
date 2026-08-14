@@ -282,7 +282,7 @@ function ensureStorageEmptySlots(state, need) {
   state.storageSlots = Math.max(state.storageSlots || 0, state.storage.length);
 }
 
-/** 全アタッチ1種ずつを倉庫へ（上限ロール）。ロード1回だけ */
+/** 検証用。migrate からは呼ばない。アイコン確認時だけ手動で実行する */
 function seedMaxAttachmentsForVerify(state) {
   if (state.seededMaxAttach) return;
   const list = GAME_DATA.attachments || [];
@@ -860,8 +860,11 @@ function calcStats(unit, st) {
 
 function getUnitSkills(unit) {
   const cat = GAME_DATA.catalog[unit.catalogId];
+  const ids = (Array.isArray(unit.inheritedSkills) && unit.inheritedSkills.length)
+    ? unit.inheritedSkills
+    : (cat.skills || []);
   const out = [];
-  for (const sid of cat.skills) {
+  for (const sid of ids) {
     const sk = GAME_DATA.skills[sid];
     if (sk) out.push(sk);
   }
@@ -922,8 +925,8 @@ function loadGame() {
     if (!raw) return null;
     const state = JSON.parse(raw);
     migrateState(state);
-    applyStaminaRegen(state);
     applySiteBonuses(state);
+    applyStaminaRegen(state);
     return state;
   } catch (e) {
     console.error("Load failed", e);
@@ -936,7 +939,8 @@ function applyStaminaRegen(state) {
   const elapsed = now - (state.staminaUpdatedAt || now);
   const regen = Math.floor(elapsed / GAME_DATA.staminaRegenMs);
   if (regen > 0) {
-    state.stamina = Math.min(state.staminaMax, state.stamina + regen);
+    const cap = typeof state.staminaMax === "number" ? state.staminaMax : GAME_DATA.staminaMaxBase;
+    state.stamina = Math.min(cap, state.stamina + regen);
     state.staminaUpdatedAt = now - (elapsed % GAME_DATA.staminaRegenMs);
   }
 }
@@ -1896,7 +1900,7 @@ function maxCraftCount(state, outputId) {
   }
   if (isPart(outputId)) {
     max = Math.min(max, Math.max(0, state.partStack - storageCount(state, outputId)));
-  } else if (meta.kind === "attach") {
+  } else if (meta.kind === "attach" || needsWeaponUid(outputId)) {
     const empty = state.storage.filter((s) => !s).length;
     max = Math.min(max, empty);
   } else {
@@ -1930,7 +1934,7 @@ function craftItem(state, outputId, times = 1) {
     if (storageCount(state, outputId) + times > state.partStack) {
       return { ok: false, msg: "基礎部品の所持上限です" };
     }
-  } else if (meta.kind === "attach") {
+  } else if (meta.kind === "attach" || needsWeaponUid(outputId)) {
     const empty = state.storage.filter((s) => !s).length;
     if (empty < times) return { ok: false, msg: "倉庫に空きがありません" };
   } else {
@@ -2058,7 +2062,7 @@ function migrateState(state) {
   ensureMapProgress(state);
   snapshotSiteProgress(state);
   migrateStorage(state);
-  seedMaxAttachmentsForVerify(state);
+  // 検証用の最大アタッチ配布は migrate では呼ばない（seedMaxAttachmentsForVerify）
   // 旧セーブの全種シードは経済を壊すので呼ばない
   // SYSTEM 通知はチャットに載せない方針のため、旧セーブ分も除去する
   state.chatLog = (state.chatLog || []).filter((m) => m.user !== "SYSTEM" && m.channel !== "alert");

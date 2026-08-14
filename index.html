@@ -1622,6 +1622,7 @@ async function syncCloudSave() {
       state = JSON.parse(cloud.data);
       migrateState(state);
       applySiteBonuses(state);
+      applyStaminaRegen(state);
       rememberSyncUid(uid);
       fbLastSyncUid = uid;
       saveGame(state);
@@ -1795,7 +1796,7 @@ function renderChat() {
   box.innerHTML = display.map((m) => {
     const whoClass = m.user === "指揮官" ? "cmd" : "";
     const t = new Date(m.ts).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
-    return `<div class="chat-msg"><span class="who ${whoClass}">${m.user}</span><span class="time">${t}</span><div class="text">${escapeHtml(m.text)}</div></div>`;
+    return `<div class="chat-msg"><span class="who ${whoClass}">${escapeHtml(m.user)}</span><span class="time">${t}</span><div class="text">${escapeHtml(m.text)}</div></div>`;
   }).join("");
   box.scrollTop = box.scrollHeight;
   const netStatus = chatChannel === "all"
