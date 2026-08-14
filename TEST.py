@@ -85,11 +85,15 @@ ok("mapSites", Array.isArray(G.mapSites) && G.mapSites.length >= 1);
 const tree = G.siteTree;
 ok("siteTree", tree && Array.isArray(tree.nodes) && tree.nodes.length >= 20);
 const treeIds = new Set();
+const treeIcons = new Set();
 for (const n of tree.nodes) {
   ok(`tree node ${n.id}`, typeof n.id === "string" && n.id.length > 0 && !treeIds.has(n.id));
   treeIds.add(n.id);
   ok(`tree xy ${n.id}`, typeof n.x === "number" && typeof n.y === "number");
+  ok(`tree icon ${n.id}`, typeof n.icon === "string" && n.icon.length > 0);
+  treeIcons.add(n.icon);
 }
+ok("tree unique icons", treeIcons.size >= 20, `n=${treeIcons.size}`);
 ok("tree start", treeIds.has(tree.startId));
 for (const [a, b] of tree.edges) {
   ok(`tree edge ${a}-${b}`, treeIds.has(a) && treeIds.has(b));
@@ -457,6 +461,26 @@ def main() -> int:
         failed += 1
     else:
         print("OK  siteTree data")
+
+    if "作戦司令部Lv" not in html:
+        print("FAIL index.html に 作戦司令部Lv が無い")
+        failed += 1
+    else:
+        print("OK  HQ level label")
+
+    tree_dir = ROOT / "assets" / "tree"
+    tree_pngs = sorted(p for p in tree_dir.glob("*.png") if p.is_file())
+    if len(tree_pngs) < 20:
+        print(f"FAIL assets/tree のアイコンが不足 ({len(tree_pngs)}/20)")
+        failed += 1
+    else:
+        print(f"OK  tree icons ({len(tree_pngs)})")
+    tree_icon_ids = re.findall(r'icon:\s*"([a-z0-9-]+)"', (ROOT / "data.js").read_text(encoding="utf-8"))
+    for iid in sorted(set(tree_icon_ids)):
+        png = tree_dir / f"{iid}.png"
+        if not png.is_file():
+            print(f"FAIL missing assets/tree/{iid}.png")
+            failed += 1
 
     game = (ROOT / "game.js").read_text(encoding="utf-8")
     for needle, label in (

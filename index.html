@@ -1130,6 +1130,11 @@ a { color: rgb(var(--color-secondary)); }
 .site-hover-stats dt { color: rgb(var(--color-text-muted)); }
 .site-hover-stats dd { font-variant-numeric: tabular-nums; }
 .site-hover .cost { font-size: 12px; margin: 0 0 12px; color: rgb(var(--color-text-muted)); }
+.ptree-hover-head { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 6px; }
+.ptree-hover-icon {
+  width: 48px; height: 48px; object-fit: contain; flex: 0 0 auto;
+  background: #101820; border: 1px solid rgb(var(--color-frame)); border-radius: 6px;
+}
 .site-delta { font-size: 12px; margin: 8px 0 12px; line-height: 1.7; }
 .site-delta .up, .site-hover .up { color: #5dca7a; }
 
@@ -1152,25 +1157,30 @@ a { color: rgb(var(--color-secondary)); }
 .ptree-pins { position: absolute; inset: 0; }
 .ptree-node {
   position: absolute; transform: translate(-50%, -50%);
-  width: 16px; height: 16px; padding: 0; border-radius: 50%;
+  width: 36px; height: 36px; padding: 0; border-radius: 50%;
   border: 2px solid #3a4a5c; background: #101820; cursor: pointer; z-index: 1;
+  overflow: hidden;
 }
-.ptree-node.notable { width: 24px; height: 24px; }
+.ptree-node img {
+  display: block; width: 100%; height: 100%; object-fit: contain;
+  pointer-events: none;
+}
+.ptree-node.notable { width: 46px; height: 46px; }
 .ptree-node.keystone {
-  width: 28px; height: 28px; border-radius: 3px;
-  transform: translate(-50%, -50%) rotate(45deg);
+  width: 52px; height: 52px; border-radius: 6px;
 }
-.ptree-node.start { width: 26px; height: 26px; border-width: 2px; }
+.ptree-node.start { width: 48px; height: 48px; border-width: 2px; }
+.ptree-node.locked img { filter: grayscale(1) brightness(0.7); }
 .ptree-node.c-sentry { border-color: #c4a34a; }
 .ptree-node.c-gear { border-color: #7a8a58; }
 .ptree-node.c-salvage { border-color: #b07048; }
 .ptree-node.c-ops { border-color: #5a7a98; }
 .ptree-node.c-link { border-color: #6a7a88; }
 .ptree-node.c-core { border-color: #c4a34a; }
-.ptree-node.on { background: #c4a34a; box-shadow: 0 0 10px #c4a34a88; }
-.ptree-node.c-gear.on { background: #7a8a58; box-shadow: 0 0 10px #7a8a5888; }
-.ptree-node.c-salvage.on { background: #b07048; box-shadow: 0 0 10px #b0704888; }
-.ptree-node.c-ops.on { background: #5a7a98; box-shadow: 0 0 10px #5a7a9888; }
+.ptree-node.on { box-shadow: 0 0 12px #c4a34a99; }
+.ptree-node.c-gear.on { box-shadow: 0 0 12px #7a8a5899; }
+.ptree-node.c-salvage.on { box-shadow: 0 0 12px #b0704899; }
+.ptree-node.c-ops.on { box-shadow: 0 0 12px #5a7a9899; }
 .ptree-node.reach:not(.on) { box-shadow: 0 0 0 1px #c4a34a66; }
 .ptree-node.locked { opacity: 0.32; }
 .ptree-node.selected { outline: 2px solid #fff; outline-offset: 2px; z-index: 2; }
@@ -3824,7 +3834,7 @@ function renderChamber() {
   }
   return `<div class="panel">
     <h2>自動試験槽 (${inC.length}/${maxSlots})</h2>
-    <p style="font-size:12px;color:rgb(var(--color-text-muted))">BOSS勝利のたびに槽内の収容体へ XP +${xpTick}（Site Lv.${state.siteLevel}）。編成中の個体は入れられない。拠点強化で槽数が増える。</p>
+    <p style="font-size:12px;color:rgb(var(--color-text-muted))">BOSS勝利のたびに槽内の収容体へ XP +${xpTick}（作戦司令部Lv.${state.siteLevel}）。編成中の個体は入れられない。拠点強化で槽数が増える。</p>
     <div class="squad-board">${cells.join("")}</div>
   </div>
   <div class="panel">
@@ -4132,7 +4142,7 @@ function renderTreeHover(node, allocated, reachable, unspent) {
   } else if (!reachable) {
     action = `<p class="cost">隣接する取得済みノードから伸ばしてください。</p>`;
   } else if (unspent < cost) {
-    action = `<p class="cost">プロトコル点が不足（要 ${cost} / 残 ${unspent}）。施設を拡張すると点が入る。</p>`;
+    action = `<p class="cost">プロトコル点が不足（要 ${cost} / 残 ${unspent}）。作戦司令部を拡張すると点が入る。</p>`;
   } else {
     action = `<button type="button" class="btn btn-accent" id="btn-alloc-node" data-alloc="${node.id}">割り当て — ${cost}点</button>`;
   }
@@ -4151,9 +4161,17 @@ function renderTreeHover(node, allocated, reachable, unspent) {
     } else if (v > 0 && k !== "dismantleExtra") shown = `+${v}`;
     return `<div><dt>${label}</dt><dd>${shown}</dd></div>`;
   }).join("") || `<div><dt>効果</dt><dd>なし</dd></div>`;
+  const icon = node.icon
+    ? `<img class="ptree-hover-icon" src="assets/tree/${node.icon}.png" alt="" onerror="this.style.display='none'">`
+    : "";
   return `<aside class="site-hover">
-    <div class="kicker">${ptreeKindLabel(node.kind)} — ${node.cluster}</div>
-    <h2>${escapeHtml(node.name)}</h2>
+    <div class="ptree-hover-head">
+      ${icon}
+      <div>
+        <div class="kicker">${ptreeKindLabel(node.kind)} — ${node.cluster}</div>
+        <h2>${escapeHtml(node.name)}</h2>
+      </div>
+    </div>
     <p class="desc">${escapeHtml(node.desc || "")}</p>
     <dl class="site-hover-stats">${effects}</dl>
     <p class="cost">現在パッシブ: 素材×${(p.enhanceMat || 1).toFixed(2)} / 分解追加 ${Math.round((p.dismantleChance || 0) * 100)}% / 砲台 ${sentryMaxOf(state)}</p>
@@ -4177,7 +4195,10 @@ function renderPtree(allocated, inspectId) {
     const locked = !on && !reach;
     const sel = n.id === inspectId ? " selected" : "";
     const kind = n.kind === "keystone" || n.kind === "notable" || n.kind === "start" ? n.kind : "";
-    return `<button type="button" class="ptree-node ${ptreeClusterClass(n.cluster)} ${kind} ${on ? "on" : ""} ${reach ? "reach" : ""} ${locked ? "locked" : ""}${sel}" data-tree-id="${n.id}" style="left:${(n.x / 10).toFixed(2)}%;top:${((n.y / 680) * 100).toFixed(2)}%" title="${escapeHtml(n.name)}"></button>`;
+    const icon = n.icon
+      ? `<img src="assets/tree/${n.icon}.png" alt="" draggable="false" onerror="this.style.display='none'">`
+      : "";
+    return `<button type="button" class="ptree-node ${ptreeClusterClass(n.cluster)} ${kind} ${on ? "on" : ""} ${reach ? "reach" : ""} ${locked ? "locked" : ""}${sel}" data-tree-id="${n.id}" style="left:${(n.x / 10).toFixed(2)}%;top:${((n.y / 680) * 100).toFixed(2)}%" title="${escapeHtml(n.name)}">${icon}</button>`;
   }).join("");
   return `<div>
     <div class="ptree-stage">
@@ -4223,7 +4244,7 @@ function renderSite() {
   const respecCost = GAME_DATA.siteTree.respecCost || 400;
   const canRespec = sitePointsSpent(state) > 0 && state.budget >= respecCost;
   return `<div class="panel">
-    <h2>拡張段階 <small style="font-weight:400;color:rgb(var(--color-text-muted))">Site Lv.${state.siteLevel} — ${escapeHtml(cur.name)}</small></h2>
+    <h2>作戦司令部Lv <small style="font-weight:400;color:rgb(var(--color-text-muted))">Lv.${state.siteLevel} — ${escapeHtml(cur.name)}</small></h2>
     <div class="site-tree-layout">
       <div class="site-tree">${facility}</div>
       ${renderSiteHover(inspect, cur)}
@@ -4233,7 +4254,7 @@ function renderSite() {
     <h2>プロトコルツリー</h2>
     <div class="ptree-bar">
       <span>プロトコル点 <strong>${unspent}</strong> / ${total}</span>
-      <span>施設Lvごとに +${GAME_DATA.siteTree.pointsPerLevel}</span>
+      <span>作戦司令部Lvごとに +${GAME_DATA.siteTree.pointsPerLevel}</span>
       <button type="button" class="btn btn-sm btn-secondary" id="btn-respec-tree" ${canRespec ? "" : "disabled"}>再編成 — ${respecCost}</button>
     </div>
     <p style="font-size:11px;color:rgb(var(--color-text-muted));margin:-4px 0 10px">取得済みに隣接するノードだけ割り当てできる。砲台・工廠・解体・運用の4クラスタ。</p>

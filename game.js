@@ -2076,7 +2076,7 @@ function upgradeSite(state) {
   spendMaterials(state, next.materials);
   state.siteLevel++;
   applySiteBonuses(state);
-  return { ok: true, msg: `${next.name} に拡張 (Site Lv.${state.siteLevel})` };
+  return { ok: true, msg: `${next.name} に拡張 (作戦司令部Lv.${state.siteLevel})` };
 }
 
 /** クラフト可能なもの（部品 T2/T3・収容アイテム・アーティファクト）を一覧化する */
