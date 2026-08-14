@@ -557,6 +557,19 @@ def main() -> int:
             failed += 1
         else:
             print("OK  header docs left of permit")
+    if 'id="notice-bar"' not in html or "function initNoticeBar" not in html:
+        print("FAIL 最上部のお知らせが無い")
+        failed += 1
+    elif "notices:" not in (ROOT / "data.js").read_text(encoding="utf-8"):
+        print("FAIL data.js に notices が無い")
+        failed += 1
+    else:
+        print("OK  notice bar")
+    if ".btn.btn-map-select" not in html or "#8eb8d4" not in html:
+        print("FAIL MAP選択／←司令室の薄い青が無い")
+        failed += 1
+    else:
+        print("OK  nav sky buttons")
     if 'id="item-hover"' not in html or "data-item-hover" not in html or "function bindItemHover" not in html:
         print("FAIL アイテムホバー詳細が無い")
         failed += 1

@@ -190,10 +190,16 @@ a { color: rgb(var(--color-secondary)); }
 }
 .view-header h1 { font-family: var(--font-display); font-size: 1.35rem; letter-spacing: 0.14em; text-transform: uppercase; }
 .back-btn {
-  padding: 6px 14px; border-radius: var(--radius-pill); background: rgb(var(--button-bg));
-  border: 1px solid rgb(var(--button-border)); color: rgb(var(--color-text-muted)); font-size: 12px;
+  padding: 6px 14px; border-radius: var(--radius-pill);
+  background: #8eb8d4; color: #102028; border: 1px solid #a8cce0; font-size: 12px;
 }
-.back-btn:hover { color: rgb(var(--color-text)); }
+.btn.btn-map-select {
+  background: #8eb8d4; color: #102028; border: 1px solid #a8cce0;
+}
+.back-btn:hover,
+.btn.btn-map-select:hover:not(:disabled) {
+  background: #a4cce4; color: #102028;
+}
 
 .panel {
   background: rgb(var(--color-surface)); border: 1px solid rgb(var(--color-frame) / 0.85);
@@ -1841,6 +1847,40 @@ select, input[type="text"], input[type="number"] {
 }
 #toast.show { opacity: 1; }
 
+.notice-bar {
+  flex-shrink: 0; position: relative; z-index: 40;
+  background: #0a121c; border-bottom: 1px solid rgb(var(--color-frame));
+}
+.notice-bar > button {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  padding: 6px 16px; background: transparent; color: rgb(var(--color-text));
+  font-size: 12px; text-align: left; border: none;
+}
+.notice-bar > button:hover { background: rgb(var(--color-surface) / 0.45); }
+.notice-label {
+  flex-shrink: 0; color: rgb(var(--color-accent)); font-weight: 700;
+  letter-spacing: 0.14em; font-size: 11px;
+}
+.notice-latest {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: rgb(var(--color-text-muted));
+}
+.notice-panel {
+  position: absolute; left: 0; right: 0; top: 100%; z-index: 80;
+  background: rgb(var(--color-surface)); border-bottom: 1px solid rgb(var(--color-frame));
+  max-height: 40vh; overflow-y: auto; padding: 8px 16px 12px;
+  box-shadow: 0 8px 18px rgb(0 0 0 / 0.35);
+}
+.notice-panel[hidden] { display: none; }
+.notice-list { list-style: none; }
+.notice-list li {
+  display: grid; grid-template-columns: 7.2em 1fr; gap: 10px;
+  padding: 7px 0; border-top: 1px solid rgb(var(--color-frame) / 0.6);
+  font-size: 12px; line-height: 1.45;
+}
+.notice-list li:first-child { border-top: none; }
+.notice-list time { color: rgb(var(--color-text-muted)); font-family: Consolas, monospace; font-size: 11px; }
+
 /* スマホ専用配置。PCの司令室レイアウトは維持し、狭い幅だけ積み直す */
 @media (max-width: 860px) {
   html, body { overflow: auto; }
@@ -1871,6 +1911,7 @@ select, input[type="text"], input[type="number"] {
   .pill-meta { display: none; }
   .pill-stamina .pill-bar { width: 56px; }
   .header-doc { padding: 3px 6px; font-size: 10px; }
+  .notice-bar > button { padding: 5px 8px; font-size: 11px; }
   .chat-drawer-btn { display: inline-block; }
   .app-body { grid-template-columns: 1fr; min-height: 0; }
   .main-area { padding: 8px; }
@@ -1954,6 +1995,13 @@ select, input[type="text"], input[type="number"] {
 </div>
 
 <div id="app" class="hidden">
+  <div class="notice-bar" id="notice-bar">
+    <button type="button" id="btn-notice" aria-expanded="false" aria-controls="notice-panel">
+      <span class="notice-label">お知らせ</span>
+      <span class="notice-latest" id="notice-latest"></span>
+    </button>
+    <div id="notice-panel" class="notice-panel" hidden></div>
+  </div>
   <header class="top-bar">
     <div class="brand">SCP-Unknown-<small>収容違反ダンジョン</small></div>
     <div class="operator-chip" id="operator-chip">
@@ -2478,6 +2526,39 @@ function viewHeader(title) {
     <button type="button" class="back-btn" id="btn-back">← 司令室</button>
     <h1>${title || VIEW_TITLES[currentView] || currentView}</h1>
   </div>`;
+}
+
+function initNoticeBar() {
+  // 最上部固定。render() で消えないよう #app 直下に置く
+  const btn = document.getElementById("btn-notice");
+  const panel = document.getElementById("notice-panel");
+  const latestEl = document.getElementById("notice-latest");
+  const bar = document.getElementById("notice-bar");
+  if (!btn || !panel || !latestEl || !bar) return;
+  const notices = GAME_DATA.notices || [];
+  const ver = GAME_DATA.version ? `v${GAME_DATA.version}` : "";
+  const head = notices[0];
+  latestEl.textContent = head
+    ? `${ver} ${head.title}`.trim()
+    : `${ver} 更新情報はありません`.trim();
+  panel.innerHTML = notices.length
+    ? `<ul class="notice-list">${notices.map((n) =>
+      `<li><time datetime="${escapeHtml(n.date || "")}">${escapeHtml(n.date || "")}</time><span>${escapeHtml(n.title || "")}</span></li>`
+    ).join("")}</ul>`
+    : `<p class="notice-latest">更新情報はありません</p>`;
+  if (btn.dataset.bound) return;
+  btn.dataset.bound = "1";
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    const open = panel.hidden;
+    panel.hidden = !open;
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  document.addEventListener("click", (e) => {
+    if (panel.hidden || bar.contains(e.target)) return;
+    panel.hidden = true;
+    btn.setAttribute("aria-expanded", "false");
+  });
 }
 
 function updateHeader() {
@@ -4143,6 +4224,7 @@ function renderHelp() {
       <li><strong>拠点強化</strong>のノードをクリックすると右側に詳細が出る。拡張は予算に加え基礎部品と収容品を消費する。</li>
       <li><strong>拠点 → 収容個体生成</strong>でカタログ化・再分類。</li>
       <li><strong>DB → 異能図鑑</strong>でポートレートカードを閲覧。クラス／発見状態／原種・交差種を絞る。</li>
+      <li>画面最上部の<strong>お知らせ</strong>で更新内容を確認できる。</li>
       <li>左の<strong>チャット</strong>でサイト内通信（全体・質問はブラウザ間で共有）。</li>
     </ol>
   </div>`;
@@ -5956,6 +6038,7 @@ function init() {
       document.getElementById("app").classList.remove("hidden");
       initFirebaseChat();
       initChat();
+      initNoticeBar();
       render();
     }
   }, 1200);
@@ -5967,6 +6050,7 @@ function init() {
     document.getElementById("app").classList.remove("hidden");
     initFirebaseChat();
     initChat();
+    initNoticeBar();
     render();
   };
 

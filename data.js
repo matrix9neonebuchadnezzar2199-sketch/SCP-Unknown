@@ -3,7 +3,16 @@
  * SCP articles © respective authors on SCP Wiki.
  */
 const GAME_DATA = {
-  version: "0.4.4",
+  version: "0.4.5",
+  // お知らせバーの正本。画面側に更新文を直書きしない
+  notices: [
+    { date: "2026-08-14", title: "お知らせを画面最上部に追加。MAP選択と←司令室の背景を薄い青に変更" },
+    { date: "2026-08-14", title: "チャットの全体・質問をブラウザ間で共有。通信ログをクリア" },
+    { date: "2026-08-14", title: "スマホ専用の司令室レイアウト" },
+    { date: "2026-08-14", title: "装備に部位バッジと部位フィルタを追加" },
+    { date: "2026-08-14", title: "収容体合成を拠点メニューへ移動" },
+    { date: "2026-08-14", title: "ヘルプと関連物語を許可証の左へ配置" },
+  ],
   staminaMaxBase: 30,
   staminaRegenMs: 120000, // 2 min per token
   chamberUnlockCount: 7,
