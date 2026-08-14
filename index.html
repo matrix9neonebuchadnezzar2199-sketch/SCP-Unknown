@@ -1421,6 +1421,8 @@ function initFirebaseChat() {
   try {
     firebase.initializeApp(FIREBASE_CONFIG);
     fbDb = firebase.database();
+    // セッションを localStorage に永続化（リロードしてもログインを維持）
+    firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
     firebase.auth().onAuthStateChanged((user) => {
       fbUser = user;
       fbAuthed = !!user;
@@ -1505,7 +1507,7 @@ function pushCloudSave(s) {
 }
 window.onGameSaved = (s) => pushCloudSave(s);
 
-/** ログイン時の同期。新しい方を採用する（クラウドが新しければ確認して読み込む） */
+/** ログイン時の同期。クラウドにセーブがあれば必ず選択させる（誤上書き防止） */
 async function syncCloudSave() {
   if (!fbDb || !fbUser || fbUser.isAnonymous || !state) return;
   try {
@@ -1516,13 +1518,15 @@ async function syncCloudSave() {
       toast("ゲストのセーブをクラウドへ引き継ぎました");
       return;
     }
-    const localTs = state.savedAt || 0;
-    if ((cloud.ts || 0) > localTs + 1000) {
-      const ok = await showConfirm({
-        title: "クラウドセーブの検出",
-        body: `クラウドに新しいセーブ（${new Date(cloud.ts).toLocaleString("ja-JP")}）があります。読み込みますか？ 現在のローカルセーブは上書きされます。`,
-      });
-      if (!ok) { pushCloudSave(state); return; }
+    const cloudDate = cloud.ts ? new Date(cloud.ts).toLocaleString("ja-JP") : "不明";
+    const localDate = state.savedAt ? new Date(state.savedAt).toLocaleString("ja-JP") : "不明";
+    const loadCloud = await showConfirm({
+      title: "クラウドセーブの検出",
+      bodyHtml: `<p>このアカウントにはクラウドのセーブ（${escapeHtml(cloudDate)}）があります。</p>
+        <p><strong>はい</strong> — クラウドを読み込む（このブラウザのセーブは上書きされます）<br>
+        <strong>いいえ</strong> — このブラウザのセーブ（${escapeHtml(localDate)}）をクラウドへアップロード</p>`,
+    });
+    if (loadCloud) {
       state = JSON.parse(cloud.data);
       migrateState(state);
       applySiteBonuses(state);
@@ -1531,6 +1535,7 @@ async function syncCloudSave() {
       toast("クラウドからセーブを読み込みました");
     } else {
       pushCloudSave(state);
+      toast("ローカルのセーブをクラウドへアップロードしました");
     }
   } catch (e) {
     toast("クラウド同期に失敗しました");
@@ -1706,6 +1711,7 @@ function escapeHtml(s) {
 
 function render() {
   updateHeader();
+  updateAuthUi();
   renderChat();
   const main = document.getElementById("main");
   const views = {
