@@ -360,21 +360,43 @@ const simKeep = { sentries: [{ x: 0, y: 0, ammo: 0, emptyAtMs: Date.now() }] };
 ok("keep empty sentry 10s", ctx.expireEmptySentries(simKeep) === false && simKeep.sentries.length === 1);
 
 const simShot = {
-  reds: [{ x: 40, y: 0, dead: false, dying: false, incoming: false, roomId: 0, label: "X", waypoints: [] }],
-  blues: [{ x: 0, y: 0, label: "展開チーム" }],
+  reds: [{ x: 40, y: 0, dead: false, dying: false, incoming: false, roomId: 0, label: "X", waypoints: [], hp: 10, hpMax: 10 }],
+  blues: [{ x: 0, y: 0, label: "展開チーム", facing: 0, fireCd: 0, burstLeft: 0, hp: 80, hpMax: 80 }],
   sentries: [],
   shots: [],
   flashes: [],
   events: [],
   contacts: 0,
   time: 0,
+  depth: 1,
   sector: { rooms: [{ id: 0, code: "A-01" }] },
 };
 ok("acquire team shot", ctx.acquireShots(simShot, {}) === true && simShot.shots.length === 1);
-ok("red incoming", simShot.reds[0].incoming === true);
+eq("burst left", simShot.blues[0].burstLeft, 9);
 ok("no double acquire", ctx.acquireShots(simShot, {}) === false && simShot.shots.length === 1);
 const stShot = ctx.createNewState();
-ok("shot hit dying", ctx.updateShots(simShot, stShot, 1) === true && simShot.reds[0].dying === true);
+ctx.updateShots(simShot, stShot, 1);
+ok("shot hit dmg", simShot.reds[0].hp === 9 && simShot.reds[0].dying === false);
+simShot.shots = [];
+simShot.blues[0].fireCd = 0;
+simShot.blues[0].burstLeft = 0;
+for (let i = 0; i < 9; i++) {
+  simShot.blues[0].fireCd = 0;
+  ctx.acquireShots(simShot, {});
+  ctx.updateShots(simShot, stShot, 1);
+  simShot.shots = [];
+}
+ok("tenth kill", simShot.reds[0].dying === true && simShot.reds[0].hp === 0);
+const simConeMiss = {
+  reds: [{ x: 0, y: 40, dead: false, dying: false, roomId: 0, label: "Y", waypoints: [], hp: 10, hpMax: 10 }],
+  blues: [{ x: 0, y: 0, label: "展開チーム", facing: 0, fireCd: 0, burstLeft: 0 }],
+  sentries: [],
+  shots: [],
+};
+ok("cone miss", ctx.acquireShots(simConeMiss, {}) === false && simConeMiss.shots.length === 0);
+const simHq = ctx.createSectorSim(ctx.createNewState(), ctx.GAME_DATA.floors[0]);
+ok("hq placed", simHq.hq && typeof simHq.hq.x === "number" && typeof simHq.hq.roomId === "number");
+ok("team hp", simHq.blues[0].hpMax >= 80 && simHq.blues[0].hp === simHq.blues[0].hpMax);
 
 if (fails.length) {
   console.error("FAIL " + fails.length);
@@ -461,6 +483,11 @@ def main() -> int:
         failed += 1
     else:
         print("OK  sentry green beacon")
+    if "function drawTeamCone" not in sector_src or "前線指揮所" not in sector_src or "const TEAM_BURST_COUNT = 10" not in sector_src:
+        print("FAIL 迎撃錐／MAP HP／前線指揮所が無い")
+        failed += 1
+    else:
+        print("OK  team cone and HQ")
 
     if "function acquireShots" not in sector_src or "function drawShots" not in sector_src:
         print("FAIL 射撃演出（acquireShots / drawShots）が無い")

@@ -26,6 +26,19 @@ const SECTOR_H = 430;
 const CONTACT_RADIUS = 13;
 /** チーム周囲の現在視界。永続解明は部屋単位（この円が部屋に触れたら開く） */
 const LIGHT_RADIUS = 80;
+/** 進行方向の迎撃錐。解明円とは別に射撃判定に使う */
+const TEAM_FOV_DEG = 52;
+const TEAM_FOV_RANGE = LIGHT_RADIUS;
+const TEAM_BURST_COUNT = 10;
+const TEAM_BURST_INTERVAL = 0.07;
+const TEAM_SHOT_DAMAGE = 1;
+const SENTRY_SHOT_DAMAGE = 2;
+const SENTRY_FIRE_INTERVAL = 0.22;
+const ENEMY_MAP_HP = 10;
+const TEAM_HP_BASE = 80;
+const TEAM_HP_PER_MEMBER = 20;
+const ENEMY_MELEE_DPS = 12;
+const HQ_RESPAWN_SEC = 3.2;
 /** 赤がチーム位置を再追尾する間隔。速度は上げず接触頻度だけ稼ぐ */
 const RED_SEEK_INTERVAL = 1.2;
 const SENTRY_MAX = 2;
@@ -201,6 +214,12 @@ function createAgent(sector, side, label, rand) {
     incoming: false,
     respawnAt: 0,
     pulse: rand() * Math.PI * 2,
+    facing: 0,
+    hp: side === "red" ? ENEMY_MAP_HP : 0,
+    hpMax: side === "red" ? ENEMY_MAP_HP : 0,
+    fireCd: 0,
+    burstLeft: 0,
+    aimTarget: null,
   };
 }
 
@@ -217,7 +236,10 @@ function createSectorSim(state, floorData) {
   const squad = getSquadUnits(state);
   const opAgent = createAgent(sector, "blue", "展開チーム", rand);
   opAgent.isOperator = true;
+  opAgent.hpMax = TEAM_HP_BASE + squad.length * TEAM_HP_PER_MEMBER;
+  opAgent.hp = opAgent.hpMax;
   const blues = [opAgent];
+  const hqRoom = sector.rooms[opAgent.roomId] || sector.rooms[0];
 
   const redCount = Math.min(6, 2 + Math.floor(floorData.depth / 8) + floorData.enemies.length);
   const reds = [];
@@ -256,6 +278,9 @@ function createSectorSim(state, floorData) {
     rand,
     contacts: 0,
     sentries: Array.isArray(state.sentries) ? state.sentries : [],
+    hq: { x: hqRoom.cx, y: hqRoom.cy, roomId: hqRoom.id },
+    teamDown: false,
+    respawnAt: 0,
   };
 }
 
@@ -366,6 +391,8 @@ function updateAgent(sim, agent, dt) {
   const dist = Math.hypot(dx, dy);
   const step = agent.speed * dt;
 
+  if (dist > 0.4) agent.facing = Math.atan2(dy, dx);
+
   if (dist <= step) {
     agent.x = wp.x;
     agent.y = wp.y;
@@ -395,10 +422,19 @@ function updateSectorSim(sim, state, dt) {
     stateChanged = true;
   }
 
-  for (const b of sim.blues) updateAgent(sim, b, dt);
+  for (const b of sim.blues) {
+    if (b.dead) continue;
+    updateAgent(sim, b, dt);
+  }
   if (revealRoomsAround(sim, state)) stateChanged = true;
 
   const team = teamAgent(sim);
+  tickFireCds(sim, dt);
+  if (!sim.boss) {
+    if (applyMelee(sim, dt)) stateChanged = true;
+    if (beginTeamWipeIfNeeded(sim)) stateChanged = true;
+    if (respawnTeamIfReady(sim)) stateChanged = true;
+  }
   if (!sim.boss) {
     for (const r of sim.reds) {
       if (r.dead) {
@@ -408,6 +444,7 @@ function updateSectorSim(sim, state, dt) {
           r.dying = false;
           r.dyingAge = 0;
           r.incoming = false;
+          r.hp = r.hpMax || ENEMY_MAP_HP;
           r.roomId = room.id;
           r.x = room.cx;
           r.y = room.cy;
@@ -426,7 +463,7 @@ function updateSectorSim(sim, state, dt) {
         }
         continue;
       }
-      if (team && (sim.time >= (r.seekAt || 0) || r.waypoints.length === 0)) {
+      if (team && !team.dead && (sim.time >= (r.seekAt || 0) || r.waypoints.length === 0)) {
         assignSeekTeam(sim, r, team);
         r.seekAt = sim.time + RED_SEEK_INTERVAL;
       }
@@ -458,32 +495,127 @@ function updateSectorSim(sim, state, dt) {
 }
 
 function redIsBusy(r) {
-  return !r || r.dead || r.dying || r.incoming;
+  return !r || r.dead || r.dying;
+}
+
+function angleDelta(a, b) {
+  let d = a - b;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+
+function inTeamCone(team, x, y) {
+  if (!team) return false;
+  const dx = x - team.x;
+  const dy = y - team.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist < 2 || dist > TEAM_FOV_RANGE) return false;
+  const half = (TEAM_FOV_DEG * Math.PI) / 360;
+  return Math.abs(angleDelta(Math.atan2(dy, dx), team.facing || 0)) <= half;
+}
+
+function nearestRedInCone(sim, team) {
+  let best = null;
+  let bestD = Infinity;
+  for (const r of sim.reds) {
+    if (redIsBusy(r)) continue;
+    if (!inTeamCone(team, r.x, r.y)) continue;
+    const d = Math.hypot(r.x - team.x, r.y - team.y);
+    if (d < bestD) {
+      bestD = d;
+      best = r;
+    }
+  }
+  return best;
+}
+
+function aimTeamTarget(sim, team) {
+  const cur = team.aimTarget;
+  if (cur && !redIsBusy(cur) && Math.hypot(cur.x - team.x, cur.y - team.y) <= TEAM_FOV_RANGE) {
+    return cur;
+  }
+  const next = nearestRedInCone(sim, team);
+  team.aimTarget = next;
+  return next;
+}
+
+function tickFireCds(sim, dt) {
+  const team = teamAgent(sim);
+  if (team) team.fireCd = Math.max(0, (team.fireCd || 0) - dt);
+  for (const s of sim.sentries || []) {
+    s._fireCd = Math.max(0, (s._fireCd || 0) - dt);
+  }
+}
+
+function applyMelee(sim, dt) {
+  const team = teamAgent(sim);
+  if (!team || team.dead || sim.teamDown) return false;
+  let hit = false;
+  for (const r of sim.reds) {
+    if (redIsBusy(r)) continue;
+    if (Math.hypot(r.x - team.x, r.y - team.y) > CONTACT_RADIUS) continue;
+    team.hp = Math.max(0, (team.hp || 0) - ENEMY_MELEE_DPS * dt);
+    hit = true;
+  }
+  return hit;
+}
+
+function beginTeamWipeIfNeeded(sim) {
+  const team = teamAgent(sim);
+  if (!team || sim.teamDown || team.dead) return false;
+  if ((team.hp || 0) > 0) return false;
+  team.dead = true;
+  team.hp = 0;
+  team.aimTarget = null;
+  team.burstLeft = 0;
+  sim.teamDown = true;
+  sim.respawnAt = sim.time + HQ_RESPAWN_SEC;
+  const hq = sim.hq;
+  const roomName = hq && sim.sector.rooms[hq.roomId] ? sim.sector.rooms[hq.roomId].code : "HQ";
+  sim.events.push(`[${roomName}] 展開チームが撤退 — 前線指揮所へ再展開`);
+  return true;
+}
+
+function respawnTeamIfReady(sim) {
+  const team = teamAgent(sim);
+  if (!sim.teamDown || !team || sim.time < sim.respawnAt) return false;
+  const hq = sim.hq || { x: team.x, y: team.y, roomId: team.roomId };
+  team.dead = false;
+  team.hp = team.hpMax || TEAM_HP_BASE;
+  team.x = hq.x;
+  team.y = hq.y;
+  team.roomId = hq.roomId;
+  team.waypoints = [];
+  team.trail = [];
+  team.aimTarget = null;
+  team.burstLeft = 0;
+  sim.teamDown = false;
+  sim.events.push("オスプレイが前線指揮所に展開 — 巡回を再開");
+  return true;
 }
 
 function fireShot(sim, fromX, fromY, target, kind, sentry) {
   if (!sim.shots) sim.shots = [];
-  target.incoming = true;
   sim.shots.push({
     x: fromX,
     y: fromY,
     target,
     kind,
     sentry: sentry || null,
-    rgb: kind === "sentry" ? "196,163,74" : "90,150,200",
+    rgb: kind === "sentry" ? SENTRY_RGB : "90,150,200",
     tail: [{ x: fromX, y: fromY }],
   });
 }
 
-/** 円内の敵へ弾を1発。セントリーを優先（設置した砲台の弾を消費する） */
+/** セントリーは円内、チームは迎撃錐内の敵へ連射。 */
 function acquireShots(sim, state) {
   let fired = false;
-  const team = teamAgent(sim);
   for (const r of sim.reds) {
     if (redIsBusy(r)) continue;
-    let shot = false;
     for (const s of sim.sentries || []) {
       if ((s.ammo || 0) <= 0) continue;
+      if ((s._fireCd || 0) > 0) continue;
       if (Math.hypot(r.x - s.x, r.y - s.y) > sentryRadiusOf(state)) continue;
       fireShot(sim, s.x, s.y, r, "sentry", s);
       const save = sitePassives(state).sentrySave || 0;
@@ -491,24 +623,40 @@ function acquireShots(sim, state) {
         s.ammo = Math.max(0, (typeof s.ammo === "number" ? s.ammo : sentryAmmoMaxOf(state)) - 1);
       }
       if (s.ammo <= 0) s.emptyAtMs = Date.now();
+      s._fireCd = SENTRY_FIRE_INTERVAL;
       fired = true;
-      shot = true;
       break;
     }
-    if (shot || !team) continue;
-    if (Math.hypot(r.x - team.x, r.y - team.y) > LIGHT_RADIUS) continue;
-    fireShot(sim, team.x, team.y, r, "team", null);
+  }
+
+  const team = teamAgent(sim);
+  if (!team || team.dead || sim.teamDown) return fired;
+  const target = aimTeamTarget(sim, team);
+  if (!target) {
+    team.burstLeft = 0;
+    return fired;
+  }
+  team.facing = Math.atan2(target.y - team.y, target.x - team.x);
+  if ((team.burstLeft || 0) <= 0 && (team.fireCd || 0) <= 0) {
+    team.burstLeft = TEAM_BURST_COUNT;
+  }
+  if ((team.burstLeft || 0) > 0 && (team.fireCd || 0) <= 0) {
+    fireShot(sim, team.x, team.y, target, "team", null);
+    team.burstLeft -= 1;
+    team.fireCd = TEAM_BURST_INTERVAL;
     fired = true;
   }
   return fired;
 }
 
-function applyShotKill(sim, state, shot) {
+function applyShotHit(sim, state, shot) {
   const r = shot.target;
   if (!r || r.dead || r.dying) return false;
+  const dmg = shot.kind === "sentry" ? SENTRY_SHOT_DAMAGE : TEAM_SHOT_DAMAGE;
+  r.hp = Math.max(0, (typeof r.hp === "number" ? r.hp : ENEMY_MAP_HP) - dmg);
+  if (r.hp > 0) return false;
   r.dying = true;
   r.dyingAge = 0;
-  r.incoming = false;
   r.waypoints = [];
   r.respawnAt = sim.time + RED_DYING_SEC + RESPAWN_DELAY;
   sim.contacts++;
@@ -538,7 +686,7 @@ function updateShots(sim, state, dt) {
     const dist = Math.hypot(dx, dy);
     const step = SHOT_SPEED * dt;
     if (dist <= SHOT_HIT_R || dist <= step) {
-      if (applyShotKill(sim, state, shot)) changed = true;
+      if (applyShotHit(sim, state, shot)) changed = true;
       continue;
     }
     shot.x += (dx / dist) * step;
@@ -631,6 +779,79 @@ function drawTeamLight(ctx, team) {
   ctx.stroke();
 }
 
+function drawTeamCone(ctx, team) {
+  if (!team || team.dead) return;
+  const facing = team.facing || 0;
+  const half = (TEAM_FOV_DEG * Math.PI) / 360;
+  const r = TEAM_FOV_RANGE;
+  const x1 = team.x + Math.cos(facing - half) * r;
+  const y1 = team.y + Math.sin(facing - half) * r;
+  const x2 = team.x + Math.cos(facing + half) * r;
+  const y2 = team.y + Math.sin(facing + half) * r;
+  ctx.beginPath();
+  ctx.moveTo(team.x, team.y);
+  ctx.lineTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(196,163,74,0.12)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(196,163,74,0.55)";
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+}
+
+function drawHpBar(ctx, x, y, hp, hpMax, rgb) {
+  if (!(hpMax > 0)) return;
+  const w = 18;
+  const h = 3;
+  const y0 = y + 11;
+  ctx.fillStyle = "rgba(0,0,0,0.7)";
+  ctx.fillRect(x - w / 2, y0, w, h);
+  ctx.fillStyle = `rgb(${rgb})`;
+  ctx.fillRect(x - w / 2, y0, w * Math.max(0, Math.min(1, hp / hpMax)), h);
+}
+
+function drawHq(ctx, sim) {
+  const hq = sim.hq;
+  if (!hq) return;
+  if (!isRoomRevealed(sim, hq.roomId)) return;
+  ctx.fillStyle = "rgba(90,150,200,0.28)";
+  ctx.strokeStyle = "rgba(140,190,220,0.9)";
+  ctx.lineWidth = 1.4;
+  ctx.fillRect(hq.x - 9, hq.y - 7, 18, 14);
+  ctx.strokeRect(hq.x - 9, hq.y - 7, 18, 14);
+  ctx.fillStyle = "rgba(200,220,240,0.92)";
+  ctx.font = "9px Consolas, monospace";
+  ctx.fillText("前線指揮所", hq.x + 12, hq.y + 3);
+}
+
+let sectorOspreyImg = null;
+function sectorOspreyImage() {
+  if (typeof Image === "undefined") return null;
+  if (sectorOspreyImg) return sectorOspreyImg;
+  sectorOspreyImg = new Image();
+  sectorOspreyImg.src = "assets/map/osprey.png";
+  return sectorOspreyImg;
+}
+
+function drawHqOsprey(ctx, sim) {
+  if (!sim.teamDown || !sim.hq) return;
+  const x = sim.hq.x;
+  const y = sim.hq.y + Math.sin(sim.time * 3) * 3;
+  const img = sectorOspreyImage();
+  if (img && img.complete && img.naturalWidth > 0) {
+    ctx.drawImage(img, x - 18, y - 22, 36, 28);
+    return;
+  }
+  ctx.fillStyle = "rgba(196,163,74,0.85)";
+  ctx.beginPath();
+  ctx.moveTo(x - 10, y + 6);
+  ctx.lineTo(x, y - 8);
+  ctx.lineTo(x + 10, y + 6);
+  ctx.closePath();
+  ctx.fill();
+}
+
 /** 未解明は黒、解明済みは残像、円内だけ明るくする */
 function drawSector(ctx, sim) {
   const { sector } = sim;
@@ -672,11 +893,16 @@ function drawSector(ctx, sim) {
     drawRoomShape(ctx, room, live);
   }
 
-  drawTeamLight(ctx, team);
+  drawHq(ctx, sim);
+  if (team && !team.dead) {
+    drawTeamLight(ctx, team);
+    drawTeamCone(ctx, team);
+  }
 
   const visibleReds = sim.reds.filter((r) => !r.dead && (r.dying || isPointLit(sim, r.x, r.y)));
   drawAgents(ctx, visibleReds, "176,48,40");
   drawAgents(ctx, sim.blues, "90,150,200");
+  drawHqOsprey(ctx, sim);
   drawShots(ctx, sim);
 
   const placed = (sim.sentries || []).filter((s) => {
@@ -875,5 +1101,7 @@ function drawAgents(ctx, agents, rgb) {
     ctx.beginPath();
     ctx.arc(a.x, a.y, 8 * sizeMul, 0, Math.PI * 2);
     ctx.stroke();
+
+    if (!a.dying) drawHpBar(ctx, a.x, a.y, a.hp, a.hpMax, agentRgb);
   }
 }
