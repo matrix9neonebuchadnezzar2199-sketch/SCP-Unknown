@@ -14,7 +14,7 @@ python -m http.server 8765
 # http://localhost:8765/
 ```
 
-Google ログインとクラウドセーブは `file://` では動かない。`http://localhost:8765/` か GitHub Pages から開く。
+Google ログインとクラウドセーブは `file://` では動かない。`http://localhost:8765/` か GitHub Pages から開く。Realtime Database のルールは `database.rules.json`（chat / saves / presence）を asia-southeast1 インスタンスへ公開する。
 
 セーブデータは `localStorage`（キー: `scp-unknown-save-v1`）。アイテムアイコンは `assets/item/<id>.png`（128×128・透過PNG）。
 

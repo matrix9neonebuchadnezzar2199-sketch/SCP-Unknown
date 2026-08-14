@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 JS_FILES = ("data.js", "game.js", "sector.js")
-REQUIRED = JS_FILES + ("index.html", "LICENSE", "ATTRIBUTION.md")
+REQUIRED = JS_FILES + ("index.html", "LICENSE", "ATTRIBUTION.md", "database.rules.json")
 
 HARNESS = r"""
 const fs = require("fs");
@@ -335,6 +335,18 @@ def main() -> int:
         failed += 1
     else:
         print("OK  Firebase SDK present")
+    if "function startPresence" not in html or "function updateChatFooter" not in html:
+        print("FAIL オンライン人数（presence / footer）が無い")
+        failed += 1
+    else:
+        print("OK  presence footer")
+
+    rules = (ROOT / "database.rules.json").read_text(encoding="utf-8")
+    if '"presence"' not in rules or "auth.uid === $uid" not in rules:
+        print("FAIL database.rules.json に presence ルールが無い")
+        failed += 1
+    else:
+        print("OK  presence rules")
 
     game = (ROOT / "game.js").read_text(encoding="utf-8")
     for needle, label in (

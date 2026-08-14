@@ -1416,6 +1416,11 @@ let fbLastSyncUid = null;
 let cloudSaveTimer = 0;
 let cloudSaveState = "off"; // off / idle / saved / error
 const CLOUD_SYNC_UID_KEY = "scp-unknown-cloud-sync-uid";
+let fbOnlineCount = 0;
+let presenceUid = null;
+let presenceListOn = false;
+let presenceConnectedOn = false;
+const PRESENCE_CONN_ID = "c" + Math.random().toString(36).slice(2, 12);
 
 function isGoogleUser(user) {
   return !!(user && !user.isAnonymous);
@@ -1482,6 +1487,8 @@ function initFirebaseChat() {
             authChecked = true;
             if (!user) firebase.auth().signInAnonymously().catch(() => { fbAuthed = false; });
           }
+          if (user) startPresence(user.uid);
+          else stopPresence();
           if (isGoogleUser(user)) {
             if (fbLastSyncUid !== user.uid) syncCloudSave();
           } else {
@@ -1797,6 +1804,75 @@ function updateHeader() {
   document.getElementById("op-avatar").textContent = (p.codename || "R").charAt(0);
 }
 
+/** 接続中の uid 数。同一 uid の複数タブは 1 人と数える（connId でタブを分ける） */
+function countPresenceUids(snap) {
+  let n = 0;
+  snap.forEach((child) => {
+    if (child.hasChildren()) n += 1;
+  });
+  return n;
+}
+
+function attachPresenceListeners() {
+  if (!fbDb || presenceListOn) return;
+  presenceListOn = true;
+  fbDb.ref("presence").on("value", (snap) => {
+    fbOnlineCount = countPresenceUids(snap);
+    updateChatFooter();
+  });
+  if (presenceConnectedOn) return;
+  presenceConnectedOn = true;
+  fbDb.ref(".info/connected").on("value", (snap) => {
+    if (!snap.val() || !presenceUid) return;
+    claimPresence(presenceUid);
+  });
+}
+
+function claimPresence(uid) {
+  if (!fbDb || !uid) return;
+  const connRef = fbDb.ref(`presence/${uid}/${PRESENCE_CONN_ID}`);
+  connRef.onDisconnect().remove();
+  connRef.set({ ts: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+}
+
+function startPresence(uid) {
+  if (!fbDb || !uid) return;
+  attachPresenceListeners();
+  if (presenceUid && presenceUid !== uid) {
+    const oldRef = fbDb.ref(`presence/${presenceUid}/${PRESENCE_CONN_ID}`);
+    oldRef.onDisconnect().cancel();
+    oldRef.remove().catch(() => {});
+  }
+  presenceUid = uid;
+  claimPresence(uid);
+}
+
+function stopPresence() {
+  if (fbDb && presenceUid) {
+    const ref = fbDb.ref(`presence/${presenceUid}/${PRESENCE_CONN_ID}`);
+    ref.onDisconnect().cancel();
+    ref.remove().catch(() => {});
+  }
+  presenceUid = null;
+}
+
+function chatNetStatus() {
+  if (chatChannel !== "all") return "ローカル";
+  if (!fbDb) return "オフライン";
+  if (!fbAuthed) return "認証中…";
+  return `オンライン ${fbOnlineCount}人`;
+}
+
+function updateChatFooter() {
+  const el = document.getElementById("chat-footer");
+  if (!el || !state) return;
+  const n = chatChannel === "all"
+    ? mergedAllChat().length
+    : (state.chatLog || []).filter((m) => m.channel === chatChannel).length;
+  const ch = chatChannel === "all" ? "全体" : "質問";
+  el.textContent = `通信網 — ${n} 件 / チャンネル: ${ch} / ${chatNetStatus()}`;
+}
+
 function renderChat() {
   const box = document.getElementById("chat-messages");
   if (!box) return;
@@ -1809,11 +1885,7 @@ function renderChat() {
     return `<div class="chat-msg"><span class="who ${whoClass}">${escapeHtml(m.user)}</span><span class="time">${t}</span><div class="text">${escapeHtml(m.text)}</div></div>`;
   }).join("");
   box.scrollTop = box.scrollHeight;
-  const netStatus = chatChannel === "all"
-    ? (fbDb ? (fbAuthed ? "オンライン" : "認証中…") : "オフライン")
-    : "ローカル";
-  document.getElementById("chat-footer").textContent =
-    `通信網 — ${display.length} 件 / チャンネル: ${chatChannel === "all" ? "全体" : "質問"} / ${netStatus}`;
+  updateChatFooter();
 }
 
 function escapeHtml(s) {
