@@ -1788,7 +1788,16 @@ function previewCross(state, parentAUid, parentBUid) {
   const totalExp = xpEarned(a) + xpEarned(b);
   const revGain = Math.min(5, Math.max(1, Math.floor(totalExp / 500)));
   const childRev = Math.max(a.rev, b.rev) + revGain;
-  return { childCatalogId, recipe, revGain, childRev };
+  // ゴースト個体。state には載せない。UI のステ／スキル予測専用
+  const bonus = {};
+  for (const key of ["hp", "atk", "anm", "def", "spd", "luck"]) {
+    bonus[key] = Math.max(a.bonus?.[key] || 0, b.bonus?.[key] || 0);
+  }
+  const ghost = createUnit(childCatalogId, 1, childRev, bonus);
+  ghost.inheritedSkills = mergeSkills(a, b, childCatalogId);
+  const childStats = calcStats(ghost);
+  const skills = getUnitSkills(ghost).map((sk) => ({ id: sk.id, name: sk.name, type: sk.type }));
+  return { childCatalogId, recipe, revGain, childRev, childStats, skills };
 }
 
 function xpEarned(unit) {

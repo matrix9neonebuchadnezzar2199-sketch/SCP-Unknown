@@ -267,6 +267,8 @@ const beforeUnits = sCross.units.length;
 const preview = ctx.previewCross(sCross, pa.uid, pb.uid);
 eq("preview child", preview.childCatalogId, "x049_173");
 ok("preview recipe", preview.recipe === true);
+ok("preview stats", preview.childStats && preview.childStats.hp > 0);
+ok("preview skills", Array.isArray(preview.skills) && preview.skills.length > 0);
 eq("preview no mutate", sCross.units.length, beforeUnits);
 const cross = ctx.crossTest(sCross, pa.uid, pb.uid);
 ok("cross ok", cross.ok, cross.msg);
