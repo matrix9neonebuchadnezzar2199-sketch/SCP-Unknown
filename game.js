@@ -878,13 +878,39 @@ function getUnitDisplay(unit) {
   };
 }
 
+/** セーブに残さないキー。メモリ上の進行表示用で、再開に不要 */
+const SAVE_OMIT = new Set([
+  "battleLog",
+  "lastExplore",
+  "equipped",
+  "staminaMax",
+  "chamberMax",
+]);
+
+/**
+ * ディスク／クラウドへ出すセーブを作る。ライブ state は変更しない。
+ * 全体チャットのプレイヤー発言は Firebase 側が正本なので含めない。
+ */
+function sanitizeStateForSave(state) {
+  const out = {};
+  for (const [k, v] of Object.entries(state)) {
+    if (SAVE_OMIT.has(k)) continue;
+    out[k] = v;
+  }
+  const chat = Array.isArray(state.chatLog) ? state.chatLog : [];
+  out.chatLog = chat.filter((m) =>
+    m.channel === "question" || (m.channel === "all" && m.user === "指揮官")
+  ).slice(-50);
+  return out;
+}
+
 function saveGame(state) {
   try {
     snapshotSiteProgress(state);
     state.savedAt = Date.now();
-    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-    // クラウド同期用フック（index.html 側で設定。未設定ならローカルのみ）
-    if (typeof window.onGameSaved === "function") window.onGameSaved(state);
+    const payload = sanitizeStateForSave(state);
+    localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+    if (typeof window.onGameSaved === "function") window.onGameSaved(payload);
   } catch (e) {
     console.error("Save failed", e);
   }
@@ -2010,6 +2036,9 @@ function migrateState(state) {
     state.mapSite = defaultMapSiteId();
   }
   ensureOperatorGear(state);
+  if (!Array.isArray(state.battleLog)) state.battleLog = [];
+  delete state.lastExplore;
+  delete state.equipped;
   delete state.operatorGearLv;
   migrateWeaponUids(state);
   migrateNonGunWeaponStacks(state);
