@@ -867,11 +867,11 @@ a { color: rgb(var(--color-secondary)); }
 }
 
 /* 区画探索: 左 MAP / 右 ログ列。MAP は設定メニューまで1画面に収まる高さへ縮める */
-.sector-grid { display: grid; grid-template-columns: auto minmax(220px, 260px); gap: 12px; align-items: start; }
+.sector-grid { display: grid; grid-template-columns: auto minmax(330px, 390px); gap: 12px; align-items: start; }
 @media (max-width: 1180px) { .sector-grid { grid-template-columns: 1fr; } }
 .sector-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .sector-side .label { margin-bottom: 5px; }
-.sector-side .battle-log { max-height: min(36vh, 270px); }
+.sector-side .battle-log { max-height: min(54vh, 405px); }
 
 /* Menu grid（1行コンパクト） */
 .menu-section { margin-bottom: 10px; }
