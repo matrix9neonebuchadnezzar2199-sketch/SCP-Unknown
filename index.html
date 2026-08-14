@@ -215,11 +215,6 @@ a { color: rgb(var(--color-secondary)); }
 .dash-squad { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
 .dash-power { font-size: 1.35rem; font-weight: 700; color: rgb(var(--color-accent)); line-height: 1.1; flex-shrink: 0; }
 .dash-power small { display: block; font-size: 10px; font-weight: 400; color: rgb(var(--color-text-muted)); letter-spacing: 0.12em; }
-.dash-status-meters {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px;
-  width: 100%; margin-top: 8px;
-}
-@media (max-width: 560px) { .dash-status-meters { grid-template-columns: 1fr; } }
 
 .squad-strip { display: flex; gap: 8px; flex-wrap: wrap; }
 .squad-mini { width: 80px; text-align: center; font-size: 9px; }
@@ -2698,16 +2693,6 @@ function updateClearGauge() {
   }
 }
 
-function meterBar(label, value, max, cssClass, suffix = "", title = "") {
-  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
-  const tip = title ? ` title="${escapeHtml(title)}"` : "";
-  return `<div class="meter"${tip}>
-    <div class="meter-head"><span>${label}</span><span>${value}${suffix} / ${max}${suffix}</span></div>
-    <div class="meter-bar"><div class="meter-fill ${cssClass}" style="width:${pct}%"></div></div>
-  </div>`;
-}
-
-/** 司令室に出す未整理の代表。レア度が高い順に最大5件 */
 function lootSummaryHtml() {
   if (!state.pending.length) {
     return `<span style="font-size:11px;color:rgb(var(--color-text-muted))">未整理なし</span>`;
@@ -2980,8 +2965,6 @@ function renderDashboard() {
   const floorData = currentFloorData(state);
   const squadUnits = getSquadUnits(state);
   const power = calcSquadPower(state);
-  const breachRisk = Math.min(95, Math.floor(state.floor * 1.5 + state.siteLevel * 3));
-  const containment = Math.min(100, 40 + state.siteLevel * 12);
 
   const profile = state.profile || { codename: "司令官", title: "収容担当" };
   const opInitial = escapeHtml((profile.codename || "OP").slice(0, 2));
@@ -3080,10 +3063,6 @@ function renderDashboard() {
             <button type="button" class="btn btn-secondary" id="btn-force-breach" title="許可証 5 枚 / キル報酬なしで制圧率を即MAX" ${state.stamina < 5 || breachReady || state.sectorCleared ? "disabled" : ""}>強行突入（区画制圧率をMAX）</button>
             <button type="button" class="btn btn-secondary" data-goto="squad">編成</button>
             ${boostLeft > 0 ? `<span class="boost-chip">加速中 ${boostLeft}s</span>` : ""}
-          </div>
-          <div class="dash-status-meters">
-            ${meterBar("収容安定度", containment, 100, "teal", "%", "拠点Lvに応じた収容体制の見た目指標。戦闘・ドロップには影響しない。")}
-            ${meterBar("違反リスク推定", breachRisk, 100, breachRisk > 70 ? "red" : "amber", "%", "深度と拠点Lvから見た違反の見た目指標。戦闘・ドロップには影響しない。")}
           </div>
         </div>
       </div>

@@ -499,11 +499,14 @@ def main() -> int:
         failed += 1
     else:
         print("OK  explore progress meter removed")
-    if 'id="h-stamina-fill"' not in html or "dash-status-meters" not in html:
-        print("FAIL 許可証バー統合または安定度/リスクの移動が無い")
+    if 'id="h-stamina-fill"' not in html:
+        print("FAIL 許可証バーがヘッダーに無い")
+        failed += 1
+    elif "収容安定度" in html or "違反リスク推定" in html or "dash-status-meters" in html:
+        print("FAIL 収容安定度／違反リスク推定が残っている")
         failed += 1
     else:
-        print("OK  dash meters relocated")
+        print("OK  dash meters removed")
     if 'id="loot-summary"' not in html or "class=\"loot-icon" not in html or "ranked.slice(0, 5)" not in html:
         print("FAIL 入手整理のレア度順アイコン5件が無い")
         failed += 1
