@@ -1494,6 +1494,27 @@ a { color: rgb(var(--color-secondary)); }
 .map-poi.active .pin {
   border-color: #c4a34a; background: #c4a34a; box-shadow: 0 0 8px #c4a34a;
 }
+.map-poi.limited .pin {
+  border-color: #e0a84a; box-shadow: 0 0 10px #e0a84a;
+}
+.map-poi.limited .tag {
+  color: #e0a84a; border-color: #e0a84a;
+}
+.map-poi.limited .limited-clock {
+  font-family: Consolas, monospace; font-size: 10px; letter-spacing: 0.06em;
+  color: #ffe08a;
+}
+.map-poi.limited.locked {
+  filter: grayscale(1) brightness(0.55);
+  cursor: not-allowed;
+}
+.map-poi.limited.locked .limited-clock { color: #9aa0a8; }
+.map-poi.limited.active .tag {
+  color: #05070a; background: #e0a84a; border-color: #e0a84a;
+}
+.map-poi.limited.active .pin {
+  border-color: #e0a84a; background: #e0a84a; box-shadow: 0 0 8px #e0a84a;
+}
 .map-hq {
   position: absolute; transform: translate(-50%, -110%);
   display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -2234,6 +2255,15 @@ function sectorFrame(ts) {
     return;
   }
 
+  if (evictExpiredLimitedSite(state)) {
+    toast("時限観測点の出現時間が終了 — 既定地点へ帰還");
+    sectorSim = null;
+    render();
+    sectorRaf = requestAnimationFrame(sectorFrame);
+    return;
+  }
+  updateLimitedMapHud();
+
   const { changed, breach, bossHit, wiped } = updateSectorSim(sectorSim, state, dt);
   if (canvas) drawSector(canvas.getContext("2d"), sectorSim);
 
@@ -2414,14 +2444,32 @@ function siteLabel(s) {
   return s.alias ? `${s.name}（${s.alias}）` : s.name;
 }
 
+function updateLimitedMapHud() {
+  document.querySelectorAll("[data-limited-timer]").forEach((el) => {
+    const site = GAME_DATA.mapSites.find((s) => s.id === el.dataset.limitedTimer);
+    if (!site) return;
+    const remain = mapSiteOpenRemainMs(site);
+    el.textContent = formatLimitedClock(remain === Infinity ? 0 : remain);
+    const poi = el.closest(".map-poi");
+    if (poi) poi.classList.toggle("locked", remain <= 0);
+  });
+}
+
 function renderMap() {
   const current = currentMapSite(state).id;
   const pois = GAME_DATA.mapSites.map((s) => {
     const prog = siteProgressOf(state, s.id);
-    const title = `${siteLabel(s)} — ${s.desc} ${floorName(prog.floor)}`;
-    return `<button type="button" class="map-poi${s.id === current ? " active" : ""}" data-map-site="${s.id}" style="left:${s.x}%;top:${s.y}%" title="${escapeHtml(title)}">
+    const remain = mapSiteOpenRemainMs(s);
+    const locked = s.limited && remain <= 0;
+    const clock = s.limited
+      ? `<small>出現時間限定</small><small class="limited-clock" data-limited-timer="${s.id}">${formatLimitedClock(remain === Infinity ? 0 : remain)}</small>`
+      : `<small>${escapeHtml(s.kindLabel)} · ${floorName(prog.floor)}</small>`;
+    const title = s.limited
+      ? `${siteLabel(s)} — ${s.desc} ${locked ? "（出現終了）" : formatLimitedClock(remain)}`
+      : `${siteLabel(s)} — ${s.desc} ${floorName(prog.floor)}`;
+    return `<button type="button" class="map-poi${s.id === current ? " active" : ""}${s.limited ? " limited" : ""}${locked ? " locked" : ""}" data-map-site="${s.id}" style="left:${s.x}%;top:${s.y}%" title="${escapeHtml(title)}">
       <span class="pin"></span>
-      <span class="tag">${escapeHtml(s.code)}<small>${escapeHtml(s.kindLabel)} · ${floorName(prog.floor)}</small></span>
+      <span class="tag">${escapeHtml(s.code)}${clock}</span>
     </button>`;
   }).join("");
   const cur = currentMapSite(state);
@@ -2434,7 +2482,7 @@ function renderMap() {
     : "";
   return `<div class="panel city-map-panel">
     ${rarityHudHtml(state.floor)}
-    <p class="city-map-note">JP-81 // 地点クリックで展開確認。全滅時は前線指揮所（HQ）からオスプレイ再展開。各地点の進行は独立。</p>
+    <p class="city-map-note">JP-81 // 地点クリックで展開確認。金色ピンは出現時間限定。全滅時は前線指揮所（HQ）からオスプレイ再展開。</p>
     <div class="city-map">
       <img src="assets/map/SCP-TOKYO.jpg" alt="SCP-Unknown TOKYO">
       ${pois}
@@ -2446,6 +2494,7 @@ function renderMap() {
     <div class="map-site-blurb">
       <strong>${escapeHtml(siteLabel(cur))}</strong>
       <span class="kind">${escapeHtml(cur.kindLabel)}</span>
+      ${cur.limited ? `<span class="kind">${isMapSiteOpen(cur) ? `出現時間限定 ${formatLimitedClock(mapSiteOpenRemainMs(cur))}` : "出現終了"}</span>` : ""}
       <p>${escapeHtml(cur.desc)}</p>
     </div>
   </div>`;
@@ -2507,6 +2556,10 @@ function confirmMapSite(siteId) {
   if (mapDeployLock) return;
   const site = GAME_DATA.mapSites.find((s) => s.id === siteId);
   if (!site) return;
+  if (site.limited && !isMapSiteOpen(site)) {
+    toast("出現時間が終了しています");
+    return;
+  }
   const current = currentMapSite(state);
   const same = site.id === current.id;
   const body = same
@@ -3511,7 +3564,7 @@ function renderProfile() {
 function renderHelp() {
   return `<div class="panel"><h2>ヘルプ</h2>
     <ol style="font-size:13px;line-height:1.9;padding-left:20px;color:rgb(var(--color-text-muted))">
-      <li>司令室の MAP で日本支部サイト（生物・非生物など）を選び、展開チーム（1光点）が暗い区画を照らして制圧率を MAX にする。</li>
+      <li>司令室の MAP で日本支部サイト（生物・非生物など）を選び、展開チーム（1光点）が暗い区画を照らして制圧率を MAX にする。金色ピンは<strong>出現時間限定</strong>のレアステージ（残り 0 で選択不可）。</li>
       <li><strong>BOSS挑戦</strong>で収容違反体が MAP に出現する。接触すると交戦画面が再生され、終了後に入手と経験値のリザルトを表示。勝利で次の区画へ自動進出する。</li>
       <li>収集した部品と収容品は<strong>入手アイテム整理</strong>で倉庫へ入れるか、売却／分解する。上位クラフトと拠点拡張は収容品を残す必要がある。装備強化は予算と基礎部品。</li>
       <li><strong>工廠</strong>で部品と収容品から装備・アタッチメントを作り、<strong>拠点 → 装備</strong>で主人公に着せる。装備は個体ごとに強化（最大Lv.100、予算＋基礎部品）。メインウエポンのアタッチは個体ごとにレアとステ振れ幅が付く。</li>

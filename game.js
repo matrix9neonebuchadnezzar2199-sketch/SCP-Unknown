@@ -1072,7 +1072,8 @@ function sitePassives(state) {
 
 function siteDropBonus(state) {
   const site = GAME_DATA.siteUpgrades[state.siteLevel - 1];
-  return (site?.dropBonus || 0) + (sitePassives(state).dropBonus || 0);
+  const map = currentMapSite(state);
+  return (site?.dropBonus || 0) + (sitePassives(state).dropBonus || 0) + (map?.dropBonus || 0);
 }
 
 function sentryMaxOf(st) {
@@ -1284,8 +1285,8 @@ function rollRarity(depth) {
 }
 
 function poolForRarity(rarity) {
-  const objs = GAME_DATA.recoveryObjects.filter((o) => o.rarity === rarity);
-  const arts = GAME_DATA.artifacts.filter((a) => a.rarity === rarity);
+  const objs = GAME_DATA.recoveryObjects.filter((o) => o.rarity === rarity && !o.exclusive);
+  const arts = GAME_DATA.artifacts.filter((a) => a.rarity === rarity && !a.exclusive);
   return [...objs, ...arts];
 }
 
@@ -1847,11 +1848,22 @@ function runBattle(state, floorData) {
       }
     }
 
-    if (Math.random() < floorData.artifactChance + dropB * 0.5) {
-      const art = GAME_DATA.artifacts[Math.floor(Math.random() * GAME_DATA.artifacts.length)];
+    const publicArts = GAME_DATA.artifacts.filter((a) => !a.exclusive);
+    if (publicArts.length && Math.random() < floorData.artifactChance + dropB * 0.5) {
+      const art = publicArts[Math.floor(Math.random() * publicArts.length)];
       addInventory(state, art.id);
       loot.push({ id: art.id, name: art.name, type: "artifact", qty: 1 });
       log.push(`アーティファクト発見: ${art.name}`);
+    }
+
+    const exclusiveIds = currentMapSite(state)?.exclusiveDrops;
+    if (exclusiveIds?.length && Math.random() < 0.28 + dropB) {
+      const specId = rollExclusiveSiteDrop(state);
+      if (specId) {
+        addInventory(state, specId);
+        loot.push({ id: specId, name: itemName(specId), type: itemMeta(specId)?.kind || "material", qty: 1 });
+        log.push(`時限回収: ${itemName(specId)}`);
+      }
     }
 
     if (state.floor === floorData.depth && !floorData.holdAdvance) {
@@ -1883,8 +1895,11 @@ function rollEnemyDrops(floorData) {
     drops.push({ id: objId, name: itemName(objId), type: "material" });
   }
   if (Math.random() < floorData.artifactChance * 2) {
-    const art = GAME_DATA.artifacts[Math.floor(Math.random() * GAME_DATA.artifacts.length)];
-    drops.push({ id: art.id, name: art.name, type: "artifact" });
+    const arts = GAME_DATA.artifacts.filter((a) => !a.exclusive);
+    if (arts.length) {
+      const art = arts[Math.floor(Math.random() * arts.length)];
+      drops.push({ id: art.id, name: art.name, type: "artifact" });
+    }
   }
   return drops;
 }
@@ -2235,6 +2250,7 @@ function migrateState(state) {
   if (!GAME_DATA.mapSites.some((s) => s.id === state.mapSite)) {
     state.mapSite = defaultMapSiteId();
   }
+  evictExpiredLimitedSite(state, Date.now(), false);
   ensureOperatorGear(state);
   if (!Array.isArray(state.battleLog)) state.battleLog = [];
   delete state.lastExplore;
@@ -2563,15 +2579,56 @@ function currentMapSite(state) {
 }
 
 /** 展開地点を切り替える。各地点の区画進行は独立 */
-function selectMapSite(state, siteId) {
+function selectMapSite(state, siteId, now = Date.now()) {
   const site = GAME_DATA.mapSites.find((s) => s.id === siteId);
   if (!site) return { ok: false, msg: "未知の地点です" };
+  if (site.limited && mapSiteOpenRemainMs(site, now) <= 0) {
+    return { ok: false, msg: "出現時間が終了しています" };
+  }
   if ((state.mapSite || defaultMapSiteId()) !== site.id) {
     snapshotSiteProgress(state);
     applySiteProgress(state, site.id);
   }
   saveGame(state);
   return { ok: true, msg: `展開先を ${site.name}（${floorName(state.floor)}）に設定` };
+}
+
+function formatLimitedClock(ms) {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+}
+
+/** 時限ステージの残り出現時間。非時限は Infinity */
+function mapSiteOpenRemainMs(site, now = Date.now()) {
+  if (!site?.limited) return Infinity;
+  const openMs = site.limitedOpenMs || 3600000;
+  const cycleMs = site.limitedCycleMs || openMs * 6;
+  const t = ((now % cycleMs) + cycleMs) % cycleMs;
+  return t < openMs ? openMs - t : 0;
+}
+
+function isMapSiteOpen(site, now = Date.now()) {
+  return mapSiteOpenRemainMs(site, now) > 0;
+}
+
+function rollExclusiveSiteDrop(state) {
+  const ids = currentMapSite(state)?.exclusiveDrops;
+  if (!ids?.length) return null;
+  return ids[Math.floor(Math.random() * ids.length)];
+}
+
+/** 出現窓が閉じた時限地点に居る場合、既定地点へ戻す */
+function evictExpiredLimitedSite(state, now = Date.now(), persist = true) {
+  const site = currentMapSite(state);
+  if (!site?.limited) return false;
+  if (mapSiteOpenRemainMs(site, now) > 0) return false;
+  snapshotSiteProgress(state);
+  applySiteProgress(state, defaultMapSiteId());
+  if (persist) saveGame(state);
+  return true;
 }
 
 /** 次の深度へ進むために必要な撃破数。序盤を軽く、深層をじっくりにする */
@@ -2627,15 +2684,23 @@ function runSkirmish(state, depth) {
   state.budget += budget;
 
   let item = null;
-  if (Math.random() < 0.55) {
+  const dropB = siteDropBonus(state);
+  if (Math.random() < 0.55 + dropB) {
     // 巡回中の交戦では主に基礎部品が拾える
     const partId = rollPartDrop(depth);
     addInventory(state, partId);
     item = itemName(partId);
-  } else if (Math.random() < 0.3) {
+  } else if (Math.random() < 0.3 + dropB) {
     const objId = rollObjectDrop(depth);
     addInventory(state, objId);
     item = itemName(objId);
+  }
+  if (currentMapSite(state)?.exclusiveDrops?.length && Math.random() < 0.14 + dropB) {
+    const specId = rollExclusiveSiteDrop(state);
+    if (specId) {
+      addInventory(state, specId);
+      item = item ? `${item} / ${itemName(specId)}` : itemName(specId);
+    }
   }
 
   const need = killsNeeded(state.floor);

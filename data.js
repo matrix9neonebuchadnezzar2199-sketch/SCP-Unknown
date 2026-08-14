@@ -3,7 +3,7 @@
  * SCP articles © respective authors on SCP Wiki.
  */
 const GAME_DATA = {
-  version: "0.3.7",
+  version: "0.3.8",
   staminaMaxBase: 30,
   staminaRegenMs: 120000, // 2 min per token
   chamberUnlockCount: 7,
@@ -598,6 +598,9 @@ const GAME_DATA = {
       scrapTo: { p_alloy: 4, p_cell: 2 }, craft: { p_alloy: 7, p_cell: 3, obj_key: 1 }, craftCost: 270 },
     { id: "obj_voidorb", name: "重力黒球の殻", rarity: "S", value: 520, bonus: { anm: 18 },
       scrapTo: { p_anomalon: 6, p_cell: 3 }, craft: { p_anomalon: 10, p_cell: 5, obj_wardlock: 1 }, craftCost: 480 },
+    { id: "obj_timeshard", name: "時結晶片", rarity: "A", value: 340, bonus: { luck: 10, spd: 6 },
+      exclusive: true,
+      scrapTo: { p_anomalon: 3, p_cell: 1 } },
   ],
 
   artifacts: [
@@ -632,6 +635,10 @@ const GAME_DATA = {
     { id: "art_tread", name: "位相の靴底", slot: "accessory", gear: "shoes", rarity: "A", stat: { spd: 16, eva: 0.04 }, sell: 1600,
       skill: { name: "位相歩行", desc: "床を半歩ずれて移動する。" },
       scrapTo: { p_resin: 10, p_circuit: 4 }, craft: { p_resin: 16, p_circuit: 6, obj_railspike: 1 }, craftCost: 850 },
+    { id: "art_hourglass", name: "収容砂時計", slot: "accessory", gear: "accessory", rarity: "S", stat: { luck: 18, spd: 10 }, sell: 3600,
+      exclusive: true,
+      skill: { name: "時限収容", desc: "出現窓のあいだだけ異常の滲み出しを抑える。" },
+      scrapTo: { p_anomalon: 12, p_cell: 5 } },
   ],
 
   /** 主人公の装備枠。acc1–3 は gear:"accessory" を入れる */
@@ -902,6 +909,12 @@ const GAME_DATA = {
     { id: "s8186", name: "サイト-8186", alias: "武装サイト-8186", code: "8186", kind: "keter", kindLabel: "武装Keter",
       desc: "山奥の極めて危険なKeterクラスを取り囲む武装サイト。強力な戦力が常駐。",
       x: 70, y: 73 },
+    { id: "s8103", name: "サイト-8103", alias: "時限観測点", code: "8103", kind: "temporal", kindLabel: "時限",
+      desc: "1時間だけ座標が確定する観測点。時結晶と収容砂時計が回収でき、入手率もわずかに高い。",
+      x: 84, y: 38,
+      limited: true, limitedOpenMs: 3600000, limitedCycleMs: 21600000,
+      dropBonus: 0.12,
+      exclusiveDrops: ["obj_timeshard", "art_hourglass"] },
   ],
 
   /** ステージ選択MAP上の再展開拠点。mapSites に入れない（探索地点ではない） */
@@ -922,6 +935,7 @@ const GAME_DATA = {
     physical: ["scp087", "scp093", "scp354", "scp650", "scp457", "scp173", "scp106", "scp870jp"],
     humanoid: ["scp096", "scp049", "scp106", "scp073", "scp076", "scp085", "scp239", "scp343", "scp179"],
     keter: ["scp682", "scp106", "scp076", "scp231", "scp5000", "scp096", "scp035", "scp023jp", "scp870jp", "scp2932"],
+    temporal: ["scp055", "scp178", "scp895", "scp106", "scp5000", "scp2140", "scp870jp", "scp023jp"],
   },
 
   /** Floor definitions: depth 1-50 */

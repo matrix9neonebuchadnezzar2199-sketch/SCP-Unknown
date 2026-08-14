@@ -132,10 +132,24 @@ Math.random = rnd;
 ok("dismantle ok", dis.ok, dis.msg);
 ok("dismantle bonus text", String(dis.msg).includes("選別"), dis.msg);
 const sMap = ctx.createNewState();
-const pick = G.mapSites.find((s) => s.id !== sMap.mapSite) || G.mapSites[0];
+const pick = G.mapSites.find((s) => s.id !== sMap.mapSite && !s.limited) || G.mapSites[0];
 const rMap = ctx.selectMapSite(sMap, pick.id);
 ok("selectMapSite", rMap.ok, rMap.msg);
 eq("mapSite set", sMap.mapSite, pick.id);
+{
+    const lim = G.mapSites.find((s) => s.limited);
+    ok("limited site", !!lim && lim.id === "s8103", lim && lim.id);
+    ok("limited open ms", lim && lim.limitedOpenMs === 3600000);
+    const remain0 = ctx.mapSiteOpenRemainMs(lim, 0);
+    eq("limited remain at 0", remain0, lim.limitedOpenMs);
+    eq("limited remain closed", ctx.mapSiteOpenRemainMs(lim, lim.limitedOpenMs + 1), 0);
+    const sLim = ctx.createNewState();
+    ok("limited select open", ctx.selectMapSite(sLim, lim.id, 0).ok);
+    const sClosed = ctx.createNewState();
+    ok("limited select closed", ctx.selectMapSite(sClosed, lim.id, lim.limitedOpenMs + 1).ok === false);
+    ok("exclusive filtered A", !(ctx.poolForRarity("A") || []).some((o) => o.id === "obj_timeshard"));
+    ok("exclusive filtered S", !(ctx.poolForRarity("S") || []).some((o) => o.id === "art_hourglass"));
+}
 
 for (const [sid, sk] of Object.entries(G.skills)) {
   ok(`skill.id ${sid}`, sk.id === sid);
@@ -527,6 +541,11 @@ def main() -> int:
         failed += 1
     else:
         print("OK  osprey png")
+    if "出現時間限定" not in html or "data-limited-timer" not in html or "function updateLimitedMapHud" not in html:
+        print("FAIL 時限ステージ（出現時間限定タイマー）が無い")
+        failed += 1
+    else:
+        print("OK  limited map timer")
 
     if "siteTree:" not in (ROOT / "data.js").read_text(encoding="utf-8"):
         print("FAIL data.js に siteTree が無い")
