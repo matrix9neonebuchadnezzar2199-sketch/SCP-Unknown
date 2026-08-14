@@ -564,6 +564,11 @@ def main() -> int:
         failed += 1
     else:
         print("OK  gear part badges")
+    if 'id="btn-chat-drawer"' not in html or "スマホ専用配置" not in html or ".squad-mini{width:48px" not in html.replace(" ", ""):
+        print("FAIL スマホ専用レイアウトが無い")
+        failed += 1
+    else:
+        print("OK  mobile layout")
     if ".squad-mini .icon, .squad-mini .catalog-art" not in html or "width: 80px; height: 80px" not in html:
         print("FAIL 展開部隊アイコン枠が 80px になっていない")
         failed += 1

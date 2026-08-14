@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SCP-Unknown- 収容違反ダンジョン</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -41,7 +41,7 @@
   --chat-w: 300px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; }
+html, body { height: 100%; -webkit-text-size-adjust: 100%; }
 body {
   font-family: var(--font-main);
   background:
@@ -149,6 +149,7 @@ a { color: rgb(var(--color-secondary)); }
 }
 .top-actions button:hover { color: rgb(var(--color-text)); border-color: rgb(var(--color-frame)); }
 .top-actions button#btn-auth.authed { color: #5dca7a; border-color: #5dca7a55; }
+.chat-drawer-btn { display: none; }
 
 /* Body: chat + main */
 .app-body { display: grid; grid-template-columns: var(--chat-w) 1fr; flex: 1; min-height: 0; }
@@ -1839,9 +1840,95 @@ select, input[type="text"], input[type="number"] {
   font-size: 13px; z-index: 200; opacity: 0; transition: opacity 0.3s; pointer-events: none;
 }
 #toast.show { opacity: 1; }
-@media (max-width: 768px) {
-  .app-body { grid-template-columns: 1fr; }
-  .chat-sidebar { display: none; }
+
+/* スマホ専用配置。PCの司令室レイアウトは維持し、狭い幅だけ積み直す */
+@media (max-width: 860px) {
+  html, body { overflow: auto; }
+  #app {
+    height: 100dvh;
+    min-height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .top-bar {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "brand ops actions"
+      "pills pills pills";
+    gap: 6px 8px;
+    padding: 6px 8px;
+    align-items: center;
+  }
+  .top-bar .brand { grid-area: brand; font-size: 0.82rem; letter-spacing: 0.08em; }
+  .top-bar .brand small { display: none; }
+  .operator-chip { grid-area: ops; padding: 2px 6px; min-width: 0; }
+  .operator-chip > div:last-child { display: none; }
+  .operator-chip .avatar { width: 24px; height: 24px; }
+  .stat-pills { grid-area: pills; margin-left: 0; gap: 4px; }
+  .top-actions { grid-area: actions; flex-wrap: wrap; justify-content: flex-end; }
+  .top-actions button { padding: 4px 7px; font-size: 10px; }
+  .pill-meta { display: none; }
+  .pill-stamina .pill-bar { width: 56px; }
+  .header-doc { padding: 3px 6px; font-size: 10px; }
+  .chat-drawer-btn { display: inline-block; }
+  .app-body { grid-template-columns: 1fr; min-height: 0; }
+  .main-area { padding: 8px; }
+  .chat-sidebar {
+    display: none;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    height: min(52vh, 420px);
+    z-index: 70;
+    border-right: none;
+    border-top: 1px solid rgb(var(--color-frame));
+  }
+  #app.chat-open .chat-sidebar { display: flex; }
+  .tac-panel { padding: 10px; }
+  .sector-head { gap: 8px; }
+  .sector-legend { margin-left: 0; width: 100%; flex-wrap: wrap; gap: 8px; }
+  .sector-wrap { width: 100%; }
+  .sector-hud, .sector-hud-meta { font-size: 8px; letter-spacing: 0.06em; }
+  .sector-hud-meta { max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sector-map-row { flex-direction: column; }
+  .sentry-ammo-col { flex-direction: row; flex: none; width: 100%; overflow-x: auto; }
+  .sentry-ammo-col .sentry-ammo-card { flex: 1 0 120px; }
+  .tactics-row { display: grid; grid-template-columns: 1fr 1fr; }
+  .tactics-row .label { grid-column: 1 / -1; }
+  .tactics-row .btn { width: 100%; justify-content: center; font-size: 11px; padding: 8px 6px; }
+  .tactics-row .boost-chip { grid-column: 1 / -1; }
+  .breach-row { grid-template-columns: 1fr; }
+  #btn-boss { min-width: 0; width: 100%; }
+  .dash-squad { gap: 8px; }
+  .dash-power { font-size: 1.05rem; }
+  .squad-strip { flex-wrap: nowrap; overflow-x: auto; gap: 6px; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  .squad-mini { width: 48px; flex-shrink: 0; }
+  .squad-mini .icon, .squad-mini .catalog-art { width: 48px; height: 48px; }
+  .menu-row { grid-template-columns: 1fr; }
+  .menu-cat {
+    writing-mode: horizontal-tb;
+    text-orientation: mixed;
+    justify-content: flex-start;
+    padding: 4px 8px;
+    border-right: none;
+    border-bottom: 1px solid rgb(var(--color-frame));
+  }
+  .menu-btns { grid-template-columns: 1fr 1fr; gap: 4px; padding: 6px; }
+  .menu-btn { padding: 8px 8px; font-size: 11px; min-height: 44px; }
+  .menu-btn .sub { font-size: 9px; }
+  .map-poi .tag { font-size: 10px; padding: 2px 5px 3px; }
+  .map-poi .tag small { font-size: 8px; }
+  .city-map { overflow: auto; -webkit-overflow-scrolling: touch; }
+  .equip-slot {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+  }
+  .equip-slot .slot-name:last-child { display: none; }
+  .equip-att-row { max-width: 100%; }
+  .sort-layout { gap: 10px; }
+  .slot-grid { max-height: 50vh; }
+  .panel { padding: 12px; }
+  .view-header { gap: 8px; margin-bottom: 10px; }
+  .view-header h1 { font-size: 1.05rem; }
   #toast { left: 50%; }
 }
 </style>
@@ -1880,12 +1967,13 @@ select, input[type="text"], input[type="number"] {
         <span class="pill-bar" aria-hidden="true"><i id="h-stamina-fill"></i></span>
         <span class="pill-stamina-timer" id="h-stamina-timer"></span>
       </span>
-      <span class="pill">予算 <strong id="h-budget">0</strong></span>
-      <span class="pill">Site <strong id="h-site">1</strong></span>
-      <span class="pill">深度 <strong id="h-floor">1</strong></span>
-      <span class="pill">戦力 <strong id="h-power">0</strong></span>
+      <span class="pill pill-budget">予算 <strong id="h-budget">0</strong></span>
+      <span class="pill pill-meta">Site <strong id="h-site">1</strong></span>
+      <span class="pill pill-meta">深度 <strong id="h-floor">1</strong></span>
+      <span class="pill pill-meta">戦力 <strong id="h-power">0</strong></span>
     </div>
     <div class="top-actions">
+      <button type="button" id="btn-chat-drawer" class="chat-drawer-btn" aria-expanded="false">通信</button>
       <button type="button" id="btn-auth">Google ログイン</button>
       <button type="button" data-goto="dashboard">司令室</button>
     </div>
@@ -2351,7 +2439,16 @@ function goView(view) {
   selectedUnits = [];
   sentryPlaceMode = false;
   sentryPreview = null;
+  setChatDrawer(false);
   render();
+}
+
+function setChatDrawer(open) {
+  const app = document.getElementById("app");
+  const btn = document.getElementById("btn-chat-drawer");
+  if (!app) return;
+  app.classList.toggle("chat-open", !!open);
+  if (btn) btn.setAttribute("aria-expanded", open ? "true" : "false");
 }
 
 function viewHeader(title) {
@@ -5820,6 +5917,13 @@ function initChat() {
 }
 
 function init() {
+  const chatBtn = document.getElementById("btn-chat-drawer");
+  if (chatBtn) {
+    chatBtn.onclick = () => {
+      const app = document.getElementById("app");
+      setChatDrawer(!app.classList.contains("chat-open"));
+    };
+  }
   setTimeout(() => {
     document.getElementById("splash").classList.add("hidden");
     state = loadGame();
