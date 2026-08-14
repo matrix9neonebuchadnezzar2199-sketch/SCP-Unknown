@@ -1,0 +1,17 @@
+{
+  "rules": {
+    "chat": {
+      "all": {
+        ".read": true,
+        ".write": "auth != null",
+        ".indexOn": ["ts"]
+      }
+    },
+    "saves": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}

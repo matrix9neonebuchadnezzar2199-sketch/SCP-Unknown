@@ -1523,6 +1523,10 @@ function updateAuthUi() {
 
 async function handleAuthButton() {
   if (typeof firebase === "undefined") { toast("ネットワーク未接続です"); return; }
+  if (location.protocol === "file:") {
+    toast("Google ログインは file:// では使えません。localhost の HTTP で開いてください");
+    return;
+  }
   if (fbUser && !fbUser.isAnonymous) {
     const ok = await showConfirm({ title: "ログアウト", body: "ログアウトしますか？ ローカルのセーブは残ります。" });
     if (!ok) return;
@@ -1577,9 +1581,15 @@ function pushCloudSave(s) {
       rememberSyncUid(uid);
       updateAuthUi();
     }).catch((e) => {
+      const already = cloudSaveState === "error";
       cloudSaveState = "error";
       updateAuthUi();
-      toast(`クラウド保存に失敗しました（${e.code || e.message}）`);
+      if (!already) {
+        const denied = e?.code === "PERMISSION_DENIED" || /permission denied/i.test(String(e?.message || ""));
+        toast(denied
+          ? "クラウド保存に失敗しました（PERMISSION_DENIED — Firebase の saves ルール未公開）"
+          : `クラウド保存に失敗しました（${e.code || e.message}）`);
+      }
     });
   }, 1500);
 }
