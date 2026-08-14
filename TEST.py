@@ -519,6 +519,11 @@ def main() -> int:
         failed += 1
     else:
         print("OK  base craft shops")
+    if 'menuBtn("explore"' in html or 'menuBtn("board"' in html:
+        print("FAIL 設定のダンジョン／掲示板が残っている")
+        failed += 1
+    else:
+        print("OK  settings without dungeon/board")
     if 'id="item-hover"' not in html or "data-item-hover" not in html or "function bindItemHover" not in html:
         print("FAIL アイテムホバー詳細が無い")
         failed += 1
