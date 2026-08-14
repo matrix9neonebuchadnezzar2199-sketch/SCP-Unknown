@@ -516,6 +516,11 @@ def main() -> int:
         failed += 1
     else:
         print("OK  base craft shops")
+    if 'id="item-hover"' not in html or "data-item-hover" not in html or "function bindItemHover" not in html:
+        print("FAIL アイテムホバー詳細が無い")
+        failed += 1
+    else:
+        print("OK  item hover inspect")
     if ".squad-mini .icon, .squad-mini .catalog-art" not in html or "width: 80px; height: 80px" not in html:
         print("FAIL 展開部隊アイコン枠が 80px になっていない")
         failed += 1

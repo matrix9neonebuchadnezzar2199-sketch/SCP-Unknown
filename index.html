@@ -1314,6 +1314,41 @@ a { color: rgb(var(--color-secondary)); }
 }
 .craft-card.affordable { border-color: rgb(var(--color-accent) / 0.55); }
 .craft-card.locked { opacity: 0.72; }
+.item-hover {
+  position: fixed; z-index: 70; width: min(320px, calc(100vw - 24px));
+  pointer-events: none;
+  padding: 12px 14px;
+  background: rgb(8 12 20 / 0.96);
+  border: 1px solid rgb(var(--color-accent) / 0.5);
+  border-radius: var(--radius-card);
+  box-shadow: 0 12px 36px rgb(0 0 0 / 0.5);
+}
+.item-hover[hidden] { display: none; }
+.item-hover-kicker {
+  font-size: 9px; letter-spacing: 0.16em; color: rgb(var(--color-accent));
+  margin-bottom: 8px; text-transform: uppercase;
+}
+.item-hover-head { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+.item-hover-head img {
+  width: 64px; height: 64px; object-fit: contain; flex: 0 0 64px;
+  background: #10141c; border: 1px solid rgb(var(--color-frame)); border-radius: 6px;
+}
+.item-hover-head .nm { font-weight: 700; font-size: 14px; line-height: 1.3; }
+.item-hover-head .stars { color: #ffd93d; font-size: 11px; margin-top: 2px; }
+.item-hover-head .sub { font-size: 11px; color: rgb(var(--color-text-muted)); margin-top: 3px; }
+.item-hover-stats { display: grid; gap: 3px; margin-bottom: 10px; font-size: 12px; }
+.item-hover-stats div {
+  display: grid; grid-template-columns: 4.5em 1fr; gap: 8px;
+  padding: 2px 0; border-bottom: 1px solid rgb(var(--color-frame) / 0.55);
+}
+.item-hover-stats dt { color: rgb(var(--color-text-muted)); }
+.item-hover-stats dd { font-variant-numeric: tabular-nums; }
+.item-hover-fx {
+  font-size: 12px; line-height: 1.55;
+  border-top: 1px solid rgb(var(--color-frame) / 0.55); padding-top: 8px;
+}
+.item-hover-fx strong { color: rgb(var(--color-accent)); display: block; margin-bottom: 3px; }
+.item-hover-fx p { margin: 0; color: rgb(var(--color-text-muted)); }
 .craft-out {
   display: grid; grid-template-columns: 52px 1fr; gap: 10px; align-items: start;
 }
@@ -1841,6 +1876,7 @@ select, input[type="text"], input[type="number"] {
 </div>
 
 <div id="toast"></div>
+<div id="item-hover" class="item-hover" hidden></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -2388,6 +2424,7 @@ function escapeHtml(s) {
 }
 
 function render() {
+  hideItemHover();
   updateHeader();
   updateAuthUi();
   renderChat();
@@ -3101,7 +3138,7 @@ function attachIconsRowHtml(state, uid, cls) {
     if (!inst) {
       return `<button type="button" class="equip-att-ic empty" data-att-uid="${uid}" data-attach-kind="${s.id}" title="${escapeHtml(s.name)}：未装着">+</button>`;
     }
-    return `<button type="button" class="equip-att-ic r-${inst.rarity}" data-att-uid="${uid}" data-attach-kind="${s.id}" title="${escapeHtml(s.name)}：${escapeHtml(itemName(inst.id))} ${rarityStars(inst.rarity)}">
+    return `<button type="button" class="equip-att-ic r-${inst.rarity}" data-item-hover="${inst.id}" data-hover-attach="1" data-att-uid="${uid}" data-attach-kind="${s.id}">
       <img src="assets/item/${inst.id}.png" alt="" onerror="this.style.opacity='0.2'">
     </button>`;
   }).join("")}</span>`;
@@ -3161,7 +3198,7 @@ function renderEquipment() {
         </div>`
       : `<div class="equip-slot-actions"></div>`;
     return `<div class="equip-slot-row">
-      <div class="equip-slot${active}" data-equip-slot="${slot.id}">
+      <div class="equip-slot${active}" data-equip-slot="${slot.id}"${id ? ` data-item-hover="${id}" data-hover-slot="${slot.id}"` : ""}>
         ${icon}
         <span class="slot-name">${slot.name}</span>
         <span class="slot-item">${itemLine}</span>
@@ -3280,7 +3317,8 @@ function equipPickRowHtml(meta, qty, equipped, currentMeta, pieceOrCand, fromInd
   const wt = weaponTypeOf(meta.id);
   const wtBadge = wt ? `<span class="wt-badge wt-${wt}">${weaponTypeName(meta.id)}</span>` : "";
   const attRow = (wt === "gun" && uid) ? attachIconsRowHtml(state, uid, "pick-att-row") : "";
-  return `<div class="equip-pick-row" ${action}>
+  const uidAttr = uid ? ` data-hover-uid="${uid}"` : "";
+  return `<div class="equip-pick-row" ${action} data-item-hover="${meta.id}" data-hover-lv="${lv}"${uidAttr}>
     <img src="assets/item/${meta.id}.png" alt="" onerror="this.style.opacity='0.2'">
     <div>
       <div class="nm">${wtBadge}${escapeHtml(meta.name)}<span class="stars">${rarityStars(meta.rarity)}</span> <span class="lv-badge">Lv.${lv}</span>${equipped ? " 装備中" : ""}</div>
@@ -4403,7 +4441,7 @@ function filteredCraftableList(state) {
 function craftMatChip(state, id, need) {
   const have = storageCount(state, id);
   const ok = have >= need;
-  return `<span class="craft-mat ${ok ? "ok" : "lack"}" title="${escapeHtml(itemName(id))}">
+  return `<span class="craft-mat ${ok ? "ok" : "lack"}" data-item-hover="${id}">
     <img src="assets/item/${id}.png" alt="" onerror="this.style.opacity='0.25'">
     <span>${escapeHtml(itemName(id))}×${need}<small>(${have})</small></span>
   </span>`;
@@ -4511,7 +4549,7 @@ function craftCardHtml(state, meta) {
   const skill = meta.skill
     ? `<div class="sk" style="font-size:10px;color:rgb(var(--color-accent));margin-top:2px">固有: ${escapeHtml(meta.skill.name)}</div>`
     : "";
-  return `<div class="craft-card r-${meta.rarity || "E"}${affordable ? " affordable" : " locked"}">
+  return `<div class="craft-card r-${meta.rarity || "E"}${affordable ? " affordable" : " locked"}" data-item-hover="${meta.id}">
     <div class="craft-out">
       <img src="assets/item/${meta.id}.png" alt="" onerror="this.style.opacity='0.2'">
       <div>
@@ -4802,6 +4840,160 @@ function renderCredits() {
     <table class="data-table"><thead><tr><th>SCP</th><th>著者</th><th></th></tr></thead><tbody>${entries}</tbody></table>
     ${GAME_DATA.attribution.facilitiesJp ? `<p style="font-size:12px;margin-top:12px">探索地点: <a href="${GAME_DATA.attribution.facilitiesJp.url}" target="_blank" rel="noopener">${escapeHtml(GAME_DATA.attribution.facilitiesJp.name)}</a>（SCP-JP）</p>` : ""}
     <p style="font-size:11px;margin-top:12px;color:rgb(var(--color-text-muted))">システム参考: <a href="https://arkhomu.com/" target="_blank" rel="noopener">方舟のホムンクルス</a></p></div>`;
+}
+
+let itemHoverCurrent = null;
+let itemHoverBound = false;
+
+function hoverItemEl(node) {
+  if (!node || node.nodeType !== 1) return null;
+  return node.closest("[data-item-hover]");
+}
+
+function itemHoverStatsHtml(stat) {
+  const labels = {
+    hp: "HP", atk: "物攻", anm: "異能", def: "防御", spd: "機動", luck: "運",
+    crit: "CRIT", eva: "回避", all: "全能力", regen: "回復",
+  };
+  const rows = [];
+  const seen = new Set();
+  const add = (k, v) => {
+    if (v == null || v === 0) return;
+    if (seen.has(k)) return;
+    seen.add(k);
+    rows.push(`<div><dt>${labels[k] || k}</dt><dd>${formatStatValue(k, v)}</dd></div>`);
+  };
+  if (stat?.all) add("all", stat.all);
+  for (const [k] of ENHANCE_STAT_KEYS) add(k, stat?.[k]);
+  for (const [k, v] of Object.entries(stat || {})) {
+    if (k === "all") continue;
+    add(k, v);
+  }
+  if (!rows.length) return "";
+  return `<div class="item-hover-stats">${rows.join("")}</div>`;
+}
+
+function itemHoverEffect(meta, id) {
+  if (meta?.skill?.name) return { name: meta.skill.name, desc: meta.skill.desc || "" };
+  const battle = typeof GEAR_BATTLE_SKILLS !== "undefined" ? GEAR_BATTLE_SKILLS[id] : null;
+  if (battle) return { name: battle.name, desc: battle.desc || "" };
+  if (meta?.kind === "attach") return { name: "装着補正", desc: "銃の個体にステータスを加算する。個体ごとにレアと振れ幅が付く。" };
+  if (meta?.kind === "object") return { name: "収容補正", desc: "カタログ化時に個体へ加算される。" };
+  if (meta?.kind === "part") return { name: "基礎部品", desc: "クラフトと装備強化の材料。分解できない。" };
+  if (meta?.kind === "artifact") return { name: "アーティファクト", desc: "装備スロットに装着して能力を底上げする。" };
+  return { name: "", desc: "" };
+}
+
+function itemHoverCardHtml(el) {
+  const id = el.dataset.itemHover;
+  const meta = itemMeta(id);
+  if (!meta) return "";
+  let stat = null;
+  let sub = CRAFT_KIND_LABELS[meta.kind] || meta.kind || "";
+  let rarity = meta.rarity || "E";
+
+  if (el.dataset.hoverAttach && el.dataset.attUid) {
+    const inst = attachInstOf(loadoutOf(state, el.dataset.attUid)[el.dataset.attachKind]);
+    if (inst) {
+      rarity = inst.rarity || rarity;
+      stat = inst.rolls || {};
+      const slotMeta = GAME_DATA.attachSlots.find((s) => s.id === el.dataset.attachKind);
+      sub = slotMeta ? `${slotMeta.name} / アタッチメント` : "アタッチメント";
+    }
+  } else if (el.dataset.hoverSlot && state.operatorGear) {
+    const piece = gearPieceOf(state.operatorGear[el.dataset.hoverSlot]);
+    if (piece) {
+      stat = pieceCombatStatFull(state, piece);
+      sub = `Lv.${piece.lv || 0} / ${sub}`;
+    }
+  } else if (el.dataset.hoverLv != null && el.dataset.hoverLv !== "") {
+    const lv = Number(el.dataset.hoverLv) || 0;
+    const uid = el.dataset.hoverUid || null;
+    stat = pieceCombatStatFull(state, makeGearPiece(id, lv, uid));
+    sub = `Lv.${lv} / ${sub}`;
+  } else if (meta.kind === "attach") {
+    stat = meta.stat || {};
+    sub = "アタッチメント（個体ごとに振れ幅）";
+  } else if (meta.stat) {
+    stat = flattenGearStat(meta.stat);
+  } else if (meta.bonus) {
+    stat = meta.bonus;
+    sub = "収容時補正";
+  }
+
+  const fx = itemHoverEffect(meta, id);
+  const wt = weaponTypeOf(id);
+  const wtBadge = wt ? `<span class="wt-badge wt-${wt}">${weaponTypeName(id)}</span> ` : "";
+  const statsHtml = itemHoverStatsHtml(stat);
+  const fxHtml = (fx.name || fx.desc)
+    ? `<div class="item-hover-fx">${fx.name ? `<strong>${escapeHtml(fx.name)}</strong>` : ""}<p>${escapeHtml(fx.desc || "効果説明なし")}</p></div>`
+    : `<div class="item-hover-fx"><p>効果説明なし</p></div>`;
+
+  return `<div class="item-hover-kicker">INSPECT // ${escapeHtml((meta.kind || "ITEM").toUpperCase())}</div>
+    <div class="item-hover-head">
+      <img src="assets/item/${id}.png" alt="" onerror="this.style.opacity='0.2'">
+      <div>
+        <div class="nm">${wtBadge}${escapeHtml(meta.name)}</div>
+        <div class="stars">${rarityStars(rarity)}</div>
+        <div class="sub">${escapeHtml(sub)}</div>
+      </div>
+    </div>
+    ${statsHtml || `<div class="item-hover-stats"><div><dt>価値</dt><dd>${itemValue(id).toLocaleString()}</dd></div></div>`}
+    ${fxHtml}`;
+}
+
+function placeItemHover(e) {
+  const box = document.getElementById("item-hover");
+  if (!box || box.hidden) return;
+  const pad = 16;
+  const r = box.getBoundingClientRect();
+  let x = e.clientX + pad;
+  let y = e.clientY + pad;
+  if (x + r.width > window.innerWidth - 8) x = e.clientX - r.width - pad;
+  if (y + r.height > window.innerHeight - 8) y = e.clientY - r.height - pad;
+  if (x < 8) x = 8;
+  if (y < 8) y = 8;
+  box.style.left = `${x}px`;
+  box.style.top = `${y}px`;
+}
+
+function showItemHover(el, e) {
+  if (!state) return;
+  if (document.querySelector(".confirm-overlay, .battle-overlay")) return;
+  const box = document.getElementById("item-hover");
+  if (!box) return;
+  const html = itemHoverCardHtml(el);
+  if (!html) { hideItemHover(); return; }
+  itemHoverCurrent = el;
+  box.innerHTML = html;
+  box.hidden = false;
+  if (e) placeItemHover(e);
+}
+
+function hideItemHover() {
+  itemHoverCurrent = null;
+  const box = document.getElementById("item-hover");
+  if (!box) return;
+  box.hidden = true;
+  box.innerHTML = "";
+}
+
+function bindItemHover() {
+  if (itemHoverBound) return;
+  itemHoverBound = true;
+  document.addEventListener("mouseover", (e) => {
+    const el = hoverItemEl(e.target);
+    if (!el) return;
+    if (itemHoverCurrent !== el) showItemHover(el, e);
+  });
+  document.addEventListener("mousemove", (e) => {
+    if (!itemHoverCurrent) return;
+    placeItemHover(e);
+  });
+  document.addEventListener("mouseout", (e) => {
+    if (!itemHoverCurrent) return;
+    if (!hoverItemEl(e.relatedTarget)) hideItemHover();
+  });
 }
 
 function bindViewEvents() {
@@ -5582,6 +5774,7 @@ function init() {
 }
 
 init();
+bindItemHover();
 </script>
 </body>
 </html>
