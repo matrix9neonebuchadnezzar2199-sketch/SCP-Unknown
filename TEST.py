@@ -456,6 +456,11 @@ def main() -> int:
         failed += 1
     else:
         print("OK  sentry ammo constants")
+    if "function drawSentryBeacon" not in sector_src or "const SENTRY_RGB = \"93,202,122\"" not in sector_src:
+        print("FAIL セントリー円の緑ビーコンが無い")
+        failed += 1
+    else:
+        print("OK  sentry green beacon")
 
     if "function acquireShots" not in sector_src or "function drawShots" not in sector_src:
         print("FAIL 射撃演出（acquireShots / drawShots）が無い")

@@ -33,6 +33,8 @@ const SENTRY_RADIUS = 56;
 const SENTRY_HIT = 18;
 const SENTRY_AMMO_MAX = 20;
 const SENTRY_EMPTY_MS = 10000;
+const SENTRY_RGB = "93,202,122";
+const SENTRY_SCAN_MS = 3200;
 const RESPAWN_DELAY = 5.5;
 const BOSS_CONTACT_RADIUS = 18;
 /** 収容違反体は展開部隊より速い。逃げ切られると関門が成立しない */
@@ -740,11 +742,12 @@ function sentryIndexAt(sentries, x, y) {
 
 function drawSentries(ctx, sentries, preview, radius) {
   const rad = radius || SENTRY_RADIUS;
+  const nowMs = Date.now();
   const items = sentries.map((s) => ({ s, ghost: false }));
   if (preview) items.push({ s: preview, ghost: true });
   for (const { s, ghost } of items) {
     const empty = !ghost && (s.ammo || 0) <= 0;
-    const rgb = empty ? "176,48,40" : "196,163,74";
+    const rgb = empty ? "176,48,40" : SENTRY_RGB;
     const alpha = ghost ? 0.45 : 0.7;
     ctx.strokeStyle = `rgba(${rgb},${alpha})`;
     ctx.lineWidth = ghost ? 1 : 1.4;
@@ -754,12 +757,14 @@ function drawSentries(ctx, sentries, preview, radius) {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    ctx.fillStyle = `rgba(${rgb},${ghost ? 0.15 : 0.22})`;
+    ctx.fillStyle = `rgba(${rgb},${ghost ? 0.08 : 0.12})`;
     ctx.beginPath();
     ctx.arc(s.x, s.y, rad, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = ghost ? "rgba(196,163,74,0.55)" : (empty ? "#b03028" : "#c4a34a");
+    if (!empty) drawSentryBeacon(ctx, s.x, s.y, rad, rgb, nowMs, ghost);
+
+    ctx.fillStyle = ghost ? `rgba(${SENTRY_RGB},0.55)` : (empty ? "#b03028" : "#5dca7a");
     ctx.beginPath();
     ctx.moveTo(s.x, s.y - 7);
     ctx.lineTo(s.x + 6, s.y + 5);
@@ -770,6 +775,28 @@ function drawSentries(ctx, sentries, preview, radius) {
     ctx.lineWidth = 1;
     ctx.stroke();
   }
+}
+
+/** 中心から外周へゆっくり広がる索敵ビーコン。砲台ごとに位相をずらす */
+function drawSentryBeacon(ctx, x, y, rad, rgb, nowMs, ghost) {
+  const phase = ((nowMs / SENTRY_SCAN_MS) + x * 0.013 + y * 0.017) % 1;
+  const scanR = phase * rad;
+  if (scanR < 1.5) return;
+  const fade = 1 - phase;
+  const inner = Math.max(0, scanR - 12);
+  const glow = ctx.createRadialGradient(x, y, inner, x, y, scanR);
+  glow.addColorStop(0, `rgba(${rgb},0)`);
+  glow.addColorStop(0.55, `rgba(${rgb},${(ghost ? 0.07 : 0.14) * fade})`);
+  glow.addColorStop(1, `rgba(${rgb},${(ghost ? 0.28 : 0.5) * fade})`);
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x, y, scanR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = `rgba(${rgb},${(ghost ? 0.4 : 0.9) * fade})`;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(x, y, scanR, 0, Math.PI * 2);
+  ctx.stroke();
 }
 
 /** 収容違反体は通常の赤点より大きく、脈動する二重リングで描く */
