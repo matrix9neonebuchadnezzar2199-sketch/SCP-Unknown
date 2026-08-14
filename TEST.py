@@ -303,6 +303,23 @@ ok("expire empty sentry", ctx.expireEmptySentries(simExpire) === true && simExpi
 const simKeep = { sentries: [{ x: 0, y: 0, ammo: 0, emptyAtMs: Date.now() }] };
 ok("keep empty sentry 10s", ctx.expireEmptySentries(simKeep) === false && simKeep.sentries.length === 1);
 
+const simShot = {
+  reds: [{ x: 40, y: 0, dead: false, dying: false, incoming: false, roomId: 0, label: "X", waypoints: [] }],
+  blues: [{ x: 0, y: 0, label: "展開チーム" }],
+  sentries: [],
+  shots: [],
+  flashes: [],
+  events: [],
+  contacts: 0,
+  time: 0,
+  sector: { rooms: [{ id: 0, code: "A-01" }] },
+};
+ok("acquire team shot", ctx.acquireShots(simShot, {}) === true && simShot.shots.length === 1);
+ok("red incoming", simShot.reds[0].incoming === true);
+ok("no double acquire", ctx.acquireShots(simShot, {}) === false && simShot.shots.length === 1);
+const stShot = ctx.createNewState();
+ok("shot hit dying", ctx.updateShots(simShot, stShot, 1) === true && simShot.reds[0].dying === true);
+
 if (fails.length) {
   console.error("FAIL " + fails.length);
   for (const f of fails) console.error(" - " + f);
@@ -368,6 +385,12 @@ def main() -> int:
         failed += 1
     else:
         print("OK  sentry ammo constants")
+
+    if "function acquireShots" not in sector_src or "function drawShots" not in sector_src:
+        print("FAIL 射撃演出（acquireShots / drawShots）が無い")
+        failed += 1
+    else:
+        print("OK  sector shots")
 
     game = (ROOT / "game.js").read_text(encoding="utf-8")
     for needle, label in (

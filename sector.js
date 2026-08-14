@@ -37,6 +37,9 @@ const RESPAWN_DELAY = 5.5;
 const BOSS_CONTACT_RADIUS = 18;
 /** 収容違反体は展開部隊より速い。逃げ切られると関門が成立しない */
 const BOSS_SPEED = 82;
+const SHOT_SPEED = 420;
+const SHOT_HIT_R = 7;
+const RED_DYING_SEC = 0.55;
 
 /** 地点 ID をレイアウト種に混ぜ、同じ深度でも場所ごとに区画が変わるようにする */
 function siteSeed(id) {
@@ -191,6 +194,9 @@ function createAgent(sector, side, label, rand) {
     speed: side === "blue" ? 46 + rand() * 22 : 34 + rand() * 20,
     trail: [],
     dead: false,
+    dying: false,
+    dyingAge: 0,
+    incoming: false,
     respawnAt: 0,
     pulse: rand() * Math.PI * 2,
   };
@@ -242,6 +248,7 @@ function createSectorSim(state, floorData) {
     revealed,
     boss: null,
     flashes: [],
+    shots: [],
     events: [],
     time: 0,
     rand,
@@ -396,12 +403,24 @@ function updateSectorSim(sim, state, dt) {
         if (sim.time >= r.respawnAt) {
           const room = sim.sector.rooms[Math.floor(sim.rand() * sim.sector.rooms.length)];
           r.dead = false;
+          r.dying = false;
+          r.dyingAge = 0;
+          r.incoming = false;
           r.roomId = room.id;
           r.x = room.cx;
           r.y = room.cy;
           r.trail = [];
           r.waypoints = [];
           r.seekAt = 0;
+        }
+        continue;
+      }
+      if (r.dying) {
+        r.dyingAge += dt;
+        if (r.dyingAge >= RED_DYING_SEC) {
+          r.dead = true;
+          r.dying = false;
+          r.incoming = false;
         }
         continue;
       }
@@ -426,59 +445,128 @@ function updateSectorSim(sim, state, dt) {
     return { changed: stateChanged, breach: null, bossHit: !!hit };
   }
 
-  for (const r of sim.reds) {
-    if (r.dead) continue;
-    for (const b of sim.blues) {
-      if (Math.hypot(r.x - b.x, r.y - b.y) > CONTACT_RADIUS) continue;
-
-      const reward = runSkirmish(state, sim.depth);
-      r.dead = true;
-      r.respawnAt = sim.time + RESPAWN_DELAY;
-      sim.contacts++;
-      sim.flashes.push({ x: r.x, y: r.y, age: 0 });
-      const roomName = sim.sector.rooms[r.roomId]?.code || "??";
-      if (reward) {
-        sim.events.push(
-          `[${roomName}] ${b.label} が ${r.label} と交戦 — XP +${reward.xp} / 予算 +${reward.budget}` +
-          (reward.item ? ` / ${reward.item} 回収` : "") +
-          ` (掃討 ${reward.kills}/${reward.need})`
-        );
-        stateChanged = true;
-      }
-      break;
-    }
-  }
-
-  for (const r of sim.reds) {
-    if (r.dead) continue;
-    for (const s of sim.sentries) {
-      if ((s.ammo || 0) <= 0) continue;
-      if (Math.hypot(r.x - s.x, r.y - s.y) > SENTRY_RADIUS) continue;
-      const reward = runSkirmish(state, sim.depth);
-      r.dead = true;
-      r.respawnAt = sim.time + RESPAWN_DELAY;
-      sim.contacts++;
-      sim.flashes.push({ x: r.x, y: r.y, age: 0 });
-      s.ammo = Math.max(0, (typeof s.ammo === "number" ? s.ammo : SENTRY_AMMO_MAX) - 1);
-      if (s.ammo <= 0) s.emptyAtMs = Date.now();
-      const roomName = sim.sector.rooms[r.roomId]?.code || "??";
-      if (reward) {
-        sim.events.push(
-          `[${roomName}] セントリーガンが ${r.label} を撃破 — XP +${reward.xp} / 予算 +${reward.budget}` +
-          (reward.item ? ` / ${reward.item} 回収` : "") +
-          ` (掃討 ${reward.kills}/${reward.need})`
-        );
-      }
-      stateChanged = true;
-      break;
-    }
-  }
+  if (updateShots(sim, state, dt)) stateChanged = true;
+  if (acquireShots(sim, state)) stateChanged = true;
 
   for (const f of sim.flashes) f.age += dt;
   sim.flashes = sim.flashes.filter((f) => f.age < 0.8);
   if (sim.events.length > 40) sim.events = sim.events.slice(-40);
 
   return { changed: stateChanged, breach, bossHit: false };
+}
+
+function redIsBusy(r) {
+  return !r || r.dead || r.dying || r.incoming;
+}
+
+function fireShot(sim, fromX, fromY, target, kind, sentry) {
+  if (!sim.shots) sim.shots = [];
+  target.incoming = true;
+  sim.shots.push({
+    x: fromX,
+    y: fromY,
+    target,
+    kind,
+    sentry: sentry || null,
+    rgb: kind === "sentry" ? "196,163,74" : "90,150,200",
+    tail: [{ x: fromX, y: fromY }],
+  });
+}
+
+/** 円内の敵へ弾を1発。セントリーを優先（設置した砲台の弾を消費する） */
+function acquireShots(sim, state) {
+  let fired = false;
+  const team = teamAgent(sim);
+  for (const r of sim.reds) {
+    if (redIsBusy(r)) continue;
+    let shot = false;
+    for (const s of sim.sentries || []) {
+      if ((s.ammo || 0) <= 0) continue;
+      if (Math.hypot(r.x - s.x, r.y - s.y) > SENTRY_RADIUS) continue;
+      fireShot(sim, s.x, s.y, r, "sentry", s);
+      s.ammo = Math.max(0, (typeof s.ammo === "number" ? s.ammo : SENTRY_AMMO_MAX) - 1);
+      if (s.ammo <= 0) s.emptyAtMs = Date.now();
+      fired = true;
+      shot = true;
+      break;
+    }
+    if (shot || !team) continue;
+    if (Math.hypot(r.x - team.x, r.y - team.y) > LIGHT_RADIUS) continue;
+    fireShot(sim, team.x, team.y, r, "team", null);
+    fired = true;
+  }
+  return fired;
+}
+
+function applyShotKill(sim, state, shot) {
+  const r = shot.target;
+  if (!r || r.dead || r.dying) return false;
+  r.dying = true;
+  r.dyingAge = 0;
+  r.incoming = false;
+  r.waypoints = [];
+  r.respawnAt = sim.time + RED_DYING_SEC + RESPAWN_DELAY;
+  sim.contacts++;
+  sim.flashes.push({ x: r.x, y: r.y, age: 0 });
+  const reward = runSkirmish(state, sim.depth);
+  const roomName = sim.sector.rooms[r.roomId]?.code || "??";
+  const who = shot.kind === "sentry" ? "セントリーガン" : (teamAgent(sim)?.label || "展開チーム");
+  if (reward) {
+    sim.events.push(
+      `[${roomName}] ${who} が ${r.label} を撃破 — XP +${reward.xp} / 予算 +${reward.budget}` +
+      (reward.item ? ` / ${reward.item} 回収` : "") +
+      ` (掃討 ${reward.kills}/${reward.need})`
+    );
+  }
+  return true;
+}
+
+function updateShots(sim, state, dt) {
+  if (!sim.shots) sim.shots = [];
+  let changed = false;
+  const next = [];
+  for (const shot of sim.shots) {
+    const t = shot.target;
+    if (!t || t.dead || t.dying) continue;
+    const dx = t.x - shot.x;
+    const dy = t.y - shot.y;
+    const dist = Math.hypot(dx, dy);
+    const step = SHOT_SPEED * dt;
+    if (dist <= SHOT_HIT_R || dist <= step) {
+      if (applyShotKill(sim, state, shot)) changed = true;
+      continue;
+    }
+    shot.x += (dx / dist) * step;
+    shot.y += (dy / dist) * step;
+    shot.tail.push({ x: shot.x, y: shot.y });
+    if (shot.tail.length > 6) shot.tail.shift();
+    next.push(shot);
+  }
+  sim.shots = next;
+  return changed;
+}
+
+function drawShots(ctx, sim) {
+  for (const shot of sim.shots || []) {
+    const rgb = shot.rgb || "196,163,74";
+    if (shot.tail.length > 1) {
+      ctx.strokeStyle = `rgba(${rgb},0.85)`;
+      ctx.lineWidth = shot.kind === "sentry" ? 2.2 : 1.8;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(shot.tail[0].x, shot.tail[0].y);
+      for (let i = 1; i < shot.tail.length; i++) ctx.lineTo(shot.tail[i].x, shot.tail[i].y);
+      ctx.stroke();
+    }
+    ctx.fillStyle = `rgb(${rgb})`;
+    ctx.beginPath();
+    ctx.arc(shot.x, shot.y, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,230,0.9)";
+    ctx.beginPath();
+    ctx.arc(shot.x, shot.y, 1.1, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function drawCorridor(ctx, a, b, live) {
@@ -581,9 +669,10 @@ function drawSector(ctx, sim) {
 
   drawTeamLight(ctx, team);
 
-  const visibleReds = sim.reds.filter((r) => !r.dead && isPointLit(sim, r.x, r.y));
+  const visibleReds = sim.reds.filter((r) => !r.dead && (r.dying || isPointLit(sim, r.x, r.y)));
   drawAgents(ctx, visibleReds, "176,48,40");
   drawAgents(ctx, sim.blues, "90,150,200");
+  drawShots(ctx, sim);
 
   const placed = (sim.sentries || []).filter((s) => {
     const room = roomContaining(sector, s.x, s.y);
@@ -721,12 +810,14 @@ function drawBoss(ctx, boss) {
 function drawAgents(ctx, agents, rgb) {
   for (const a of agents) {
     if (a.dead) continue;
+    const dyingT = a.dying ? Math.min(1, a.dyingAge / RED_DYING_SEC) : 0;
+    const fade = 1 - dyingT * 0.82;
+    const sizeMul = (a.isOperator ? 1.35 : 1) * (1 + dyingT * 0.7);
     const agentRgb = a.isOperator ? "196,163,74" : rgb;
-    const sizeMul = a.isOperator ? 1.35 : 1;
 
     for (let i = 0; i < a.trail.length; i++) {
       const p = a.trail[i];
-      const alpha = (i / a.trail.length) * 0.35;
+      const alpha = (i / a.trail.length) * 0.35 * fade;
       ctx.fillStyle = `rgba(${agentRgb},${alpha})`;
       ctx.beginPath();
       ctx.arc(p.x, p.y, 1.8 * sizeMul, 0, Math.PI * 2);
@@ -735,7 +826,7 @@ function drawAgents(ctx, agents, rgb) {
 
     const glowR = 14 * sizeMul;
     const glow = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, glowR);
-    glow.addColorStop(0, `rgba(${agentRgb},0.55)`);
+    glow.addColorStop(0, `rgba(${agentRgb},${0.55 * fade})`);
     glow.addColorStop(1, `rgba(${agentRgb},0)`);
     ctx.fillStyle = glow;
     ctx.beginPath();
@@ -743,12 +834,12 @@ function drawAgents(ctx, agents, rgb) {
     ctx.fill();
 
     const r = (3.2 + Math.sin(a.pulse) * 0.7) * sizeMul;
-    ctx.fillStyle = `rgb(${agentRgb})`;
+    ctx.fillStyle = `rgba(${agentRgb},${fade})`;
     ctx.beginPath();
     ctx.arc(a.x, a.y, r, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.strokeStyle = `rgba(${agentRgb},0.5)`;
+    ctx.strokeStyle = `rgba(${agentRgb},${0.5 * fade})`;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(a.x, a.y, 8 * sizeMul, 0, Math.PI * 2);
