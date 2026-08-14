@@ -915,9 +915,8 @@ function sanitizeStateForSave(state) {
     out[k] = v;
   }
   const chat = Array.isArray(state.chatLog) ? state.chatLog : [];
-  out.chatLog = chat.filter((m) =>
-    m.channel === "question" || (m.channel === "all" && m.user === "指揮官")
-  ).slice(-50);
+  // 全体・質問とも Firebase が正本。セーブに残すとクリア後も端末に復活する
+  out.chatLog = chat.filter((m) => m.channel === "all" && m.user === "指揮官").slice(-50);
   return out;
 }
 
@@ -2349,8 +2348,8 @@ function migrateState(state) {
   migrateStorage(state);
   // 検証用の最大アタッチ配布は migrate では呼ばない（seedMaxAttachmentsForVerify）
   // 旧セーブの全種シードは経済を壊すので呼ばない
-  // SYSTEM 通知はチャットに載せない方針のため、旧セーブ分も除去する
-  state.chatLog = (state.chatLog || []).filter((m) => m.channel === "question");
+  // チャットは Firebase が正本。旧セーブの質問ログも残さない
+  state.chatLog = [];
   return state;
 }
 

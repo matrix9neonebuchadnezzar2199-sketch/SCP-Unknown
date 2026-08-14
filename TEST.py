@@ -318,7 +318,7 @@ ok("omit staminaMax", payload.staminaMax === undefined);
 ok("omit chamberMax", payload.chamberMax === undefined);
 ok("keep commander", payload.chatLog.some((m) => m.user === "指揮官"));
 ok("drop player all", !payload.chatLog.some((m) => m.user === "Guest-ABC123" && m.channel === "all"));
-ok("keep question", payload.chatLog.some((m) => m.channel === "question"));
+ok("drop question", !payload.chatLog.some((m) => m.channel === "question"));
 ok("live battleLog intact", sSave.battleLog.length === 1);
 
 ctx.saveGame(sSave);
@@ -328,6 +328,11 @@ ok("stamina finite", Number.isFinite(loaded.stamina), String(loaded.stamina));
 ok("staminaMax number", typeof loaded.staminaMax === "number");
 eq("stamina regen", loaded.stamina, 13);
 eq("staminaMax site1", loaded.staminaMax, G.staminaMaxBase);
+
+const sChatMig = ctx.createNewState();
+sChatMig.chatLog = [{ channel: "question", user: "x", text: "q", ts: 1 }];
+ctx.migrateState(sChatMig);
+eq("migrate clears chat", sChatMig.chatLog.length, 0);
 
 const sMig = ctx.createNewState();
 delete sMig.seededMaxAttach;
