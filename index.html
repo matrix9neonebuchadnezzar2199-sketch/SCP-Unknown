@@ -751,8 +751,14 @@ a { color: rgb(var(--color-secondary)); }
 .confirm-box h4 { font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 8px; letter-spacing: 0.08em; }
 .confirm-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
 .confirm-box p { font-size: 12px; line-height: 1.55; color: rgb(var(--color-text-muted)); margin-bottom: 12px; }
-.confirm-box .confirm-body-html { font-size: 12px; line-height: 1.55; color: rgb(var(--color-text-muted)); margin-bottom: 12px; }
+.confirm-box .confirm-body-html {
+  font-size: 12px; line-height: 1.55; color: rgb(var(--color-text-muted)); margin-bottom: 12px;
+  max-height: 42vh; overflow-y: auto;
+}
 .confirm-box.wide { width: min(480px, 100%); }
+.confirm-item-facts { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.confirm-item-facts b { font-weight: 700; color: rgb(var(--color-text)); font-size: 11px; }
+.confirm-item-facts small { opacity: 0.8; font-size: 10px; }
 .confirm-craft-out { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
 .confirm-craft-out img { width: 44px; height: 44px; object-fit: contain; background: #10141c; border-radius: 6px; border: 1px solid rgb(var(--color-frame)); }
 .confirm-craft-label { font-size: 10px; letter-spacing: 0.1em; margin-bottom: 6px; color: rgb(var(--color-text-muted)); }
@@ -2843,23 +2849,15 @@ function confirmMapSite(siteId) {
   if (needUnlock) {
     const cost = limitedUnlockCost(site);
     const lack = materialsLack(state, cost);
-    if (lack.length) {
-      toast(`${itemName(lack[0].id)} が不足しています。異常粒子×1と電源セル×1で1回解放できます`);
-      return;
-    }
-    const mats = Object.entries(cost).map(([id, n]) => {
-      const have = storageCount(state, id);
-      return `<div class="confirm-craft-mat ok">
-        <img src="assets/item/${id}.png" alt="" onerror="this.style.opacity='0.2'">
-        ${escapeHtml(itemName(id))} ×${n}<small>（所持 ${have}）</small>
-      </div>`;
-    }).join("");
+    const can = lack.length === 0;
+    const mats = Object.entries(cost).map(([id, n]) => confirmNeedItemHtml(id, n)).join("");
     showConfirm({
       title: "時限観測点を解放",
-      bodyHtml: `<p>異常粒子×1・電源セル×1を消費して ${escapeHtml(siteLabel(site))} へ展開します。活動限界は10分、1回の挑戦です。</p>
+      bodyHtml: `<p>${escapeHtml(siteLabel(site))} へ展開します。活動限界は10分、1回です。${can ? "" : "必要数が足りません。"}</p>
         <div class="confirm-craft-mats">${mats}</div>`,
+      okOnly: !can,
     }).then((ok) => {
-      if (!ok) return;
+      if (!ok || !can) return;
       deployToMapSite(site, same);
     });
     return;
@@ -3552,10 +3550,9 @@ function handleDismantleDrop(p) {
     showConfirm({ title: "分解できません", body: `${itemName(item.id)} は分解できません。`, okOnly: true });
     return;
   }
-  const lines = prev.parts.map((x) => `${x.name}×${x.qty}`).join(" / ");
   showConfirm({
     title: "分解しますか",
-    body: `${prev.name} ×${prev.qty} を分解し、${lines} を基礎部品枠へ入れます。`,
+    bodyHtml: confirmDismantleHtml(item, prev),
   }).then((ok) => {
     if (!ok) return;
     if (p.src === "pending") applySort(dismantlePending(state, p.index));
@@ -3585,14 +3582,52 @@ function confirmBulkDismantle() {
     });
     return;
   }
-  const lines = tot.parts.map((x) => `${x.name}×${x.qty}`).join(" / ");
-  const skip = tot.skipped ? ` 基礎部品 ${tot.skipped} 個は対象外です。` : "";
+  const skip = tot.skipped ? `<p>基礎部品 ${tot.skipped} 個は対象外です。</p>` : "";
+  const chips = tot.parts.map((x) => confirmYieldChipHtml(x.id, x.qty)).join("");
   showConfirm({
     title: "すべて分解しますか",
-    body: `${lines} を基礎部品枠へ入れます。${skip}`,
+    bodyHtml: `${skip}<div class="confirm-craft-label">分解で入手</div><div class="confirm-craft-mats">${chips}</div>`,
   }).then((ok) => {
     if (ok) runBulk((i) => dismantlePending(state, i));
   });
+}
+
+function confirmNeedItemHtml(id, need) {
+  const have = storageCount(state, id);
+  const scrap = storageDismantlePartQty(state, id);
+  const ok = have >= need;
+  return `<div class="confirm-craft-mat ${ok ? "ok" : "lack"}">
+    <img src="assets/item/${id}.png" alt="" onerror="this.style.opacity='0.2'">
+    <span class="confirm-item-facts">
+      <b>${escapeHtml(itemName(id))}</b>
+      <small>必要 ${need}　所持 ${have}　分解で入手 ${scrap}</small>
+    </span>
+  </div>`;
+}
+
+function confirmYieldChipHtml(id, qty) {
+  const have = storageCount(state, id);
+  return `<div class="confirm-craft-mat ok">
+    <img src="assets/item/${id}.png" alt="" onerror="this.style.opacity='0.2'">
+    <span class="confirm-item-facts">
+      <b>${escapeHtml(itemName(id))}</b>
+      <small>所持 ${have}　分解で入手 ${qty}</small>
+    </span>
+  </div>`;
+}
+
+function confirmDismantleHtml(item, prev) {
+  const have = item.qty;
+  const chips = prev.parts.map((x) => confirmYieldChipHtml(x.id, x.qty)).join("");
+  return `<div class="confirm-craft-out">
+      <img src="assets/item/${item.id}.png" alt="" onerror="this.style.opacity='0.2'">
+      <span class="confirm-item-facts">
+        <b>${escapeHtml(prev.name)} ×${prev.qty}</b>
+        <small>現在 ${have}</small>
+      </span>
+    </div>
+    <div class="confirm-craft-label">分解で入手</div>
+    <div class="confirm-craft-mats">${chips}</div>`;
 }
 
 function showConfirm({ title, body, bodyHtml, okOnly = false, light = false, wide = false }) {

@@ -131,6 +131,13 @@ const dis = ctx.dismantleStorageSlot(sD, helmSlot, 1);
 Math.random = rnd;
 ok("dismantle ok", dis.ok, dis.msg);
 ok("dismantle bonus text", String(dis.msg).includes("選別"), dis.msg);
+{
+  const sY = ctx.createNewState();
+  eq("scrap empty", ctx.storageDismantlePartQty(sY, "p_anomalon"), 0);
+  ctx.storageAdd(sY, "obj_timeshard", 2);
+  eq("scrap timeshard anomalon", ctx.storageDismantlePartQty(sY, "p_anomalon"), 6);
+  eq("scrap timeshard cell", ctx.storageDismantlePartQty(sY, "p_cell"), 2);
+}
 const sMap = ctx.createNewState();
 const pick = G.mapSites.find((s) => s.id !== sMap.mapSite && !s.limited) || G.mapSites[0];
 const rMap = ctx.selectMapSite(sMap, pick.id);
@@ -625,6 +632,14 @@ def main() -> int:
         failed += 1
     else:
         print("OK  limited run timer")
+    if "function confirmNeedItemHtml" not in html or "function confirmDismantleHtml" not in html:
+        print("FAIL 確認ダイアログのアイテム画像／所持／分解入手が無い")
+        failed += 1
+    elif "分解で入手" not in html or "storageDismantlePartQty" not in (ROOT / "game.js").read_text(encoding="utf-8"):
+        print("FAIL 分解で入手の表示または storageDismantlePartQty が無い")
+        failed += 1
+    else:
+        print("OK  confirm item facts")
 
     if "siteTree:" not in (ROOT / "data.js").read_text(encoding="utf-8"):
         print("FAIL data.js に siteTree が無い")

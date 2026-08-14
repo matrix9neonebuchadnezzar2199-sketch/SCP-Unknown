@@ -1234,6 +1234,17 @@ function dismantleYield(id) {
   return out;
 }
 
+/** 倉庫の収容品をすべて分解したときに戻る指定部品の個数（基礎部品自身は対象外） */
+function storageDismantlePartQty(state, partId) {
+  let qty = 0;
+  for (const slot of state.storage || []) {
+    if (!slot?.id || !slot.qty) continue;
+    const yields = dismantleYield(slot.id);
+    if (yields && yields[partId]) qty += yields[partId] * slot.qty;
+  }
+  return qty;
+}
+
 /** 深度に応じた基礎部品のランダムドロップ（上位ティアほど weight が低い） */
 function rollPartDrop(depth) {
   const pool = [];
