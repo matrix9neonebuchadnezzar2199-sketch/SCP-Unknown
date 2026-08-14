@@ -519,11 +519,19 @@ def main() -> int:
         failed += 1
     else:
         print("OK  base craft shops")
-    if 'menuBtn("explore"' in html or 'menuBtn("board"' in html:
-        print("FAIL 設定のダンジョン／掲示板が残っている")
+    if 'menu-cat settings' in html or 'menuBtn("help"' in html or 'menuBtn("credits"' in html:
+        print("FAIL 設定メニューが残っている")
         failed += 1
     else:
-        print("OK  settings without dungeon/board")
+        pills = html[html.find('class="stat-pills"'):html.find('class="top-actions"')]
+        help_at = pills.find('data-goto="help"')
+        story_at = pills.find("関連物語")
+        permit_at = pills.find("許可証")
+        if help_at < 0 or story_at < 0 or not (help_at < story_at < permit_at):
+            print("FAIL 許可証の左に本／関連物語が無い")
+            failed += 1
+        else:
+            print("OK  header docs left of permit")
     if 'id="item-hover"' not in html or "data-item-hover" not in html or "function bindItemHover" not in html:
         print("FAIL アイテムホバー詳細が無い")
         failed += 1

@@ -117,12 +117,19 @@ a { color: rgb(var(--color-secondary)); }
   width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, rgb(var(--color-primary)), rgb(var(--color-secondary)));
   display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
 }
-.stat-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.stat-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; align-items: center; }
 .pill {
   padding: 4px 10px; border-radius: var(--radius-pill); font-size: 11px;
   background: rgb(var(--color-background)); border: 1px solid rgb(var(--color-frame));
 }
 .pill strong { color: rgb(var(--color-accent)); }
+/* 許可証の左。数値ピルと並べつつ操作ボタンだと分かるように枠は薄くする */
+.header-doc {
+  padding: 4px 10px; border-radius: 8px; background: transparent;
+  color: rgb(var(--color-text-muted)); font-size: 11px; border: 1px solid transparent;
+}
+.header-doc:hover { color: rgb(var(--color-text)); border-color: rgb(var(--color-frame)); }
+.header-doc-book { font-size: 16px; line-height: 1; padding: 4px 8px; }
 .pill-stamina {
   display: flex; align-items: center; gap: 8px;
 }
@@ -1843,6 +1850,8 @@ select, input[type="text"], input[type="number"] {
       <div><strong id="op-name">---</strong><br><span id="op-title" style="color:rgb(var(--color-text-muted))">---</span></div>
     </div>
     <div class="stat-pills">
+      <button type="button" class="header-doc header-doc-book" data-goto="help" title="ヘルプ" aria-label="ヘルプ">📖</button>
+      <button type="button" class="header-doc" data-goto="credits">関連物語</button>
       <span class="pill pill-stamina">許可証 <strong id="h-stamina">0</strong>/<span id="h-stamina-max">0</span>
         <span class="pill-bar" aria-hidden="true"><i id="h-stamina-fill"></i></span>
         <span class="pill-stamina-timer" id="h-stamina-timer"></span>
@@ -1854,7 +1863,6 @@ select, input[type="text"], input[type="number"] {
     </div>
     <div class="top-actions">
       <button type="button" id="btn-auth">Google ログイン</button>
-      <button type="button" data-goto="credits">Credits</button>
       <button type="button" data-goto="dashboard">司令室</button>
     </div>
   </header>
@@ -2252,7 +2260,7 @@ const VIEW_TITLES = {
   roster: "収容個体生成",
   help: "ヘルプ",
   board: "掲示板",
-  credits: "Credits",
+  credits: "関連物語",
 };
 
 function toast(msg) {
@@ -3099,13 +3107,6 @@ function renderDashboard() {
         ${menuBtn("codex", "📖", "異能図鑑", `${state.discovered.length}/${Object.keys(GAME_DATA.catalog).length}`)}
         ${menuBtn("profile", "👤", "プロフィール", `Lv.${state.profile?.clearance || 1}`)}
         ${menuBtn("items", "📦", "倉庫", `${itemCount}/${state.storageSlots}`)}
-      </div>
-    </div>
-    <div class="menu-row">
-      <div class="menu-cat settings">設定</div>
-      <div class="menu-btns">
-        ${menuBtn("help", "❓", "ヘルプ", "")}
-        ${menuBtn("credits", "©", "Credits", "")}
       </div>
     </div>
   </div>`;
