@@ -872,10 +872,10 @@ a { color: rgb(var(--color-secondary)); }
 .sector-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .sector-side .label { margin-bottom: 5px; }
 .sector-side .battle-log { max-height: min(43.2vh, 324px); }
+.sector-map-row { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
 .sentry-ammo-col {
-  position: absolute; top: 8px; right: 8px; z-index: 4;
   display: flex; flex-direction: column; gap: 6px;
-  width: 128px; pointer-events: none;
+  flex: 0 0 128px; width: 128px;
 }
 .sentry-ammo-col[hidden] { display: none; }
 .sentry-ammo-card {
@@ -2264,12 +2264,14 @@ function renderDashboard() {
     </div>` : ""}
     <div class="sector-grid" id="sector-grid">
       <div>
+        <div class="sector-map-row">
         <div class="sector-wrap">
           <canvas id="sector-canvas" width="920" height="430" class="${sentryPlaceMode ? "place-sentry" : ""}"></canvas>
           ${sectorSim?.boss ? `<div class="sentry-banner">収容違反体が接近中 — 展開チームへ直進する</div>` : ""}
           ${sentryPlaceMode ? `<div class="sentry-banner">解明した室内にセントリーガンを配置してください（${(state.sentries || []).length}/${SENTRY_MAX}）</div>` : ""}
           <div class="sector-hud" id="sector-reveal">解明 0/0</div>
           <div class="sector-hud-meta">SCAN // JP-81 // ${mapSite.code} // DEPTH ${String(floorData.depth).padStart(2, "0")}</div>
+        </div>
           <div class="sentry-ammo-col" id="sentry-ammo-col" hidden></div>
         </div>
         <div class="explore-actions">
