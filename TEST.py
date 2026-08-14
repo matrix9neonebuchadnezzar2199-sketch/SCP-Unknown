@@ -439,6 +439,11 @@ def main() -> int:
         failed += 1
     else:
         print("OK  dash meters relocated")
+    if 'id="loot-summary"' not in html or "class=\"loot-icon" not in html or "ranked.slice(0, 5)" not in html:
+        print("FAIL 入手整理のレア度順アイコン5件が無い")
+        failed += 1
+    else:
+        print("OK  loot summary icons")
     if ".squad-mini .icon, .squad-mini .catalog-art" not in html or "width: 80px; height: 80px" not in html:
         print("FAIL 展開部隊アイコン枠が 80px になっていない")
         failed += 1

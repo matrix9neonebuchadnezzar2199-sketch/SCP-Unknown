@@ -649,16 +649,16 @@ a { color: rgb(var(--color-secondary)); }
 .slot.dragging { opacity: 0.4; }
 
 .slot.r-E { background: rgb(var(--color-background)); }
-.slot.r-D, .equip-pick-row.r-D, .attach-pad.r-D, .equip-att-ic.r-D { background: linear-gradient(180deg, #7a7e86, #3e4248); border-color: #9aa0a8; }
-.slot.r-C, .equip-pick-row.r-C, .attach-pad.r-C, .equip-att-ic.r-C { background: linear-gradient(180deg, #c47a3a, #7a3e14); border-color: #e09a5a; }
-.slot.r-B, .equip-pick-row.r-B, .attach-pad.r-B, .equip-att-ic.r-B { background: linear-gradient(180deg, #d8dce4, #7c828c); border-color: #eef1f6; }
-.slot.r-A, .equip-pick-row.r-A, .attach-pad.r-A, .equip-att-ic.r-A { background: linear-gradient(180deg, #f0d060, #9a7010); border-color: #ffe08a; }
-.slot.r-S, .slot.r-SS, .equip-pick-row.r-S, .equip-pick-row.r-SS, .attach-pad.r-S, .attach-pad.r-SS, .equip-att-ic.r-S, .equip-att-ic.r-SS {
+.slot.r-D, .equip-pick-row.r-D, .attach-pad.r-D, .equip-att-ic.r-D, .loot-icon.r-D { background: linear-gradient(180deg, #7a7e86, #3e4248); border-color: #9aa0a8; }
+.slot.r-C, .equip-pick-row.r-C, .attach-pad.r-C, .equip-att-ic.r-C, .loot-icon.r-C { background: linear-gradient(180deg, #c47a3a, #7a3e14); border-color: #e09a5a; }
+.slot.r-B, .equip-pick-row.r-B, .attach-pad.r-B, .equip-att-ic.r-B, .loot-icon.r-B { background: linear-gradient(180deg, #d8dce4, #7c828c); border-color: #eef1f6; }
+.slot.r-A, .equip-pick-row.r-A, .attach-pad.r-A, .equip-att-ic.r-A, .loot-icon.r-A { background: linear-gradient(180deg, #f0d060, #9a7010); border-color: #ffe08a; }
+.slot.r-S, .slot.r-SS, .equip-pick-row.r-S, .equip-pick-row.r-SS, .attach-pad.r-S, .attach-pad.r-SS, .equip-att-ic.r-S, .equip-att-ic.r-SS, .loot-icon.r-S, .loot-icon.r-SS {
   background: linear-gradient(120deg, #ff5d7a, #ffd93d, #6bcb77, #4d96ff, #c77dff, #ff5d7a);
   background-size: 280% 280%; animation: rainbowShift 5s linear infinite;
   border-color: #fff8;
 }
-.slot.r-SS::after, .equip-pick-row.r-SS::after, .attach-pad.r-SS::after, .equip-att-ic.r-SS::after {
+.slot.r-SS::after, .equip-pick-row.r-SS::after, .attach-pad.r-SS::after, .equip-att-ic.r-SS::after, .loot-icon.r-SS::after {
   content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0;
   background-image:
     radial-gradient(circle at 18% 22%, #fff 0 1.2px, transparent 1.8px),
@@ -857,12 +857,30 @@ a { color: rgb(var(--color-secondary)); }
 /* 司令室の入手アイテム要約 */
 .loot-panel { cursor: pointer; }
 .loot-panel:hover { border-color: rgb(var(--color-primary)); }
-.loot-summary { display: flex; flex-wrap: wrap; gap: 4px; }
-.loot-chip {
-  font-size: 10px; padding: 3px 7px; border-radius: var(--radius-pill);
-  background: rgb(var(--color-background)); border: 1px solid rgb(var(--color-frame));
+.loot-summary { display: flex; flex-wrap: nowrap; gap: 5px; align-items: center; min-height: 48px; }
+.loot-icon {
+  position: relative; width: 46px; height: 46px; flex: 0 0 46px;
+  border-radius: 6px; border: 1px solid rgb(var(--color-frame));
+  background: rgb(var(--color-background));
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; pointer-events: none;
 }
-.loot-chip b { font-family: Consolas, monospace; color: rgb(var(--color-accent)); }
+.loot-icon img {
+  width: 78%; height: 78%; object-fit: contain; position: relative; z-index: 1;
+}
+.loot-icon .ph {
+  display: none; position: relative; z-index: 1;
+  font-size: 12px; color: #fff; text-shadow: 0 0 3px #000;
+}
+.loot-icon .qty {
+  position: absolute; right: 2px; bottom: 1px; z-index: 2;
+  font-family: Consolas, monospace; font-size: 10px; font-weight: 700;
+  color: #fff; text-shadow: 0 0 3px #000;
+}
+.loot-icon.more {
+  font-family: Consolas, monospace; font-size: 12px; font-weight: 700;
+  color: rgb(var(--color-text-muted));
+}
 
 .breach-advice {
   margin-bottom: 10px; padding: 10px 12px; border-radius: 8px;
@@ -2357,16 +2375,31 @@ function meterBar(label, value, max, cssClass, suffix = "", title = "") {
   </div>`;
 }
 
-/** 司令室に出す未整理アイテムの内訳（上位6件） */
+/** 司令室に出す未整理の代表。レア度が高い順に最大5件 */
 function lootSummaryHtml() {
   if (!state.pending.length) {
     return `<span style="font-size:11px;color:rgb(var(--color-text-muted))">未整理なし</span>`;
   }
-  const top = [...state.pending].sort((a, b) => b.qty - a.qty).slice(0, 6);
-  const rest = state.pending.length - top.length;
-  return top.map((e) =>
-    `<span class="loot-chip" style="border-color:${gradeColor(e.id)}66">${escapeHtml(itemName(e.id))} <b>${e.qty}</b></span>`
-  ).join("") + (rest > 0 ? `<span class="loot-chip">他 ${rest} 種</span>` : "");
+  const ranked = [...state.pending].sort((a, b) => {
+    const rankDiff = (RARITY_RANK[entryRarity(b)] ?? 0) - (RARITY_RANK[entryRarity(a)] ?? 0);
+    if (rankDiff) return rankDiff;
+    return (b.qty || 0) - (a.qty || 0);
+  });
+  const top = ranked.slice(0, 5);
+  const rest = ranked.length - top.length;
+  const icons = top.map((e) => {
+    const r = entryRarity(e);
+    const name = itemName(e.id);
+    return `<span class="loot-icon r-${r}" title="${escapeHtml(name)} ×${e.qty} — ${rarityStars(r)}">
+      <img src="assets/item/${e.id}.png" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <span class="ph">${escapeHtml(name.slice(0, 1))}</span>
+      <span class="qty">${e.qty}</span>
+    </span>`;
+  }).join("");
+  const more = rest > 0
+    ? `<span class="loot-icon more" title="他 ${rest} 種">+${rest}</span>`
+    : "";
+  return icons + more;
 }
 
 function incidentLogHtml() {
@@ -2619,9 +2652,9 @@ function renderDashboard() {
         <div class="loot-panel" data-goto="items" style="border:1px solid rgb(var(--color-frame));border-radius:8px;padding:8px 10px">
           <div class="label" style="display:flex;justify-content:space-between">
             <span>入手アイテム整理</span>
-            <span style="font-family:Consolas,monospace;color:rgb(var(--color-accent))">${pendingTotal(state)} 個</span>
+            <span id="loot-pending-count" style="font-family:Consolas,monospace;color:rgb(var(--color-accent))">${pendingTotal(state)} 個</span>
           </div>
-          <div class="loot-summary">${lootSummaryHtml()}</div>
+          <div class="loot-summary" id="loot-summary">${lootSummaryHtml()}</div>
           <div style="font-size:10px;color:rgb(var(--color-text-muted));margin-top:6px">
             倉庫 ${storageUsed(state)}/${state.storageSlots} — クリックで整理画面へ
           </div>
@@ -3435,8 +3468,14 @@ function applySort(result) {
   render();
 }
 
-/** 整理画面を開いたまま入手が増えたとき、ドラッグ中でなければ入手欄だけ更新する */
+/** 入手が増えたとき、司令室の代表アイコンまたは整理画面の入手欄だけ更新する */
 function refreshPendingLive() {
+  if (currentView === "dashboard") {
+    const loot = document.getElementById("loot-summary");
+    const lootCount = document.getElementById("loot-pending-count");
+    if (loot) loot.innerHTML = lootSummaryHtml();
+    if (lootCount) lootCount.textContent = `${pendingTotal(state)} 個`;
+  }
   if (currentView !== "items") return;
   if (dragPayload) return;
   const grid = document.getElementById("grid-pending");
