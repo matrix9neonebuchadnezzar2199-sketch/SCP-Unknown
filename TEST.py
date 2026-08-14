@@ -307,6 +307,7 @@ sSave.battleLog = ["should drop"];
 sSave.lastExplore = { x: 1 };
 sSave.stamina = 10;
 sSave.staminaUpdatedAt = Date.now() - G.staminaRegenMs * 3;
+sSave.chatLog.push({ channel: "all", user: "指揮官", text: "flavor", ts: Date.now() });
 sSave.chatLog.push({ channel: "all", user: "Guest-ABC123", text: "player line", ts: Date.now() });
 sSave.chatLog.push({ channel: "question", user: "Guest-ABC123", text: "q line", ts: Date.now() });
 const payload = ctx.sanitizeStateForSave(sSave);

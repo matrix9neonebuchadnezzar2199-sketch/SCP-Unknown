@@ -57,10 +57,7 @@ function createNewState() {
     ospreyAtHq: false,
     siteNodes: ["n_start"],
     profile: { codename: newGuestCodename(), clearance: 2, title: "収容担当" },
-    chatLog: [
-      { channel: "all", user: "指揮官", text: "異常を戦力化せよ。Thaumiel運用を維持すること。", ts: Date.now() },
-      { channel: "all", user: "研究員クロサワ", text: "深層は違反リスクが高い。編成を整えてから潜れ。", ts: Date.now() },
-    ],
+    chatLog: [],
   };
 }
 
@@ -2353,12 +2350,7 @@ function migrateState(state) {
   // 検証用の最大アタッチ配布は migrate では呼ばない（seedMaxAttachmentsForVerify）
   // 旧セーブの全種シードは経済を壊すので呼ばない
   // SYSTEM 通知はチャットに載せない方針のため、旧セーブ分も除去する
-  state.chatLog = (state.chatLog || []).filter((m) => m.user !== "SYSTEM" && m.channel !== "alert");
-  if (!state.chatLog.length) {
-    state.chatLog = [
-      { channel: "all", user: "指揮官", text: "異常を戦力化せよ。Thaumiel運用を維持すること。", ts: Date.now() },
-    ];
-  }
+  state.chatLog = (state.chatLog || []).filter((m) => m.channel === "question");
   return state;
 }
 
