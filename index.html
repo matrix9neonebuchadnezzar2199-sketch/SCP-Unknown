@@ -787,7 +787,7 @@ a { color: rgb(var(--color-secondary)); }
   border-radius: var(--radius-card);
   padding: 16px 18px;
 }
-.battle-box.wide { width: min(1120px, calc(100vw - 24px)); }
+.battle-box.wide { width: min(1240px, calc(100vw - 24px)); }
 .battle-result-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 34%);
@@ -812,13 +812,18 @@ a { color: rgb(var(--color-secondary)); }
 .bf.dead { opacity: 0.38; }
 .bf .catalog-art { width: 40px; height: 40px; margin: 0; }
 .bf-name { font-size: 11px; font-weight: 700; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bf .bar { height: 6px; background: rgb(var(--color-background)); border: 1px solid rgb(var(--color-frame)); border-radius: 3px; overflow: hidden; }
-.bf .bar i { display: block; height: 100%; background: #6b7c4a; width: 100%; }
+.bf .bar, .result-unit .bar, .result-dmg .bar {
+  height: 6px; background: rgb(var(--color-background));
+  border: 1px solid rgb(var(--color-frame)); border-radius: 3px; overflow: hidden;
+}
+.bf .bar i, .result-unit .bar i, .result-dmg .bar i {
+  display: block; height: 100%; background: #6b7c4a; width: 100%;
+}
 .bf.enemy .bar i { background: rgb(var(--color-danger)); }
 .bf-hp { font-size: 10px; font-family: Consolas, monospace; color: rgb(var(--color-text-muted)); }
 .bf-hp.lvup b { color: rgb(var(--color-accent)); }
-.bf .bar.xp i { background: rgb(var(--color-accent)); }
-.bf .bar.xp { margin-top: 4px; }
+.bf .bar.xp i, .result-unit .bar.xp i { background: rgb(var(--color-accent)); }
+.bf .bar.xp, .result-unit .bar.xp { margin-top: 2px; }
 .battle-log-live {
   margin-top: 12px; max-height: 140px; overflow-y: auto;
   font-family: Consolas, monospace; font-size: 11px; line-height: 1.55;
@@ -857,26 +862,48 @@ a { color: rgb(var(--color-secondary)); }
 }
 .result-xp .catalog-art, .result-disc .catalog-art { width: 40px; height: 40px; margin: 0; }
 .result-xp.lvup .bf-hp b { color: rgb(var(--color-accent)); }
-.result-dmg-list { display: flex; flex-direction: column; gap: 6px; }
-.result-dmg {
-  display: grid; grid-template-columns: 36px 1fr; gap: 8px; align-items: center;
+.result-team, .result-dmg-list {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
 }
-.result-dmg .catalog-art { width: 36px; height: 36px; margin: 0; }
-.result-dmg-stats {
-  display: flex; flex-wrap: wrap; gap: 10px 14px;
-  font-family: Consolas, monospace; font-size: 11px;
+.result-unit, .result-dmg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 6px;
+  background: rgb(var(--color-background));
+  border: 1px solid rgb(var(--color-frame));
+  border-radius: 8px;
 }
-.result-dmg-stats span {
-  display: inline-flex; align-items: center; gap: 5px;
-  color: rgb(var(--color-text-muted));
+.result-unit.empty, .result-dmg.empty { opacity: 0.32; min-height: 148px; }
+.result-unit.dead { opacity: 0.42; }
+.result-unit .catalog-art, .result-dmg .catalog-art {
+  width: 48px; height: 48px; margin: 0; flex-shrink: 0;
 }
-.result-dmg-stats .dealt { color: #e0a84a; }
-.result-dmg-stats .taken { color: rgb(var(--color-danger)); }
-.result-dmg-stats svg {
-  width: 12px; height: 12px; flex-shrink: 0;
+.result-unit .bf-name, .result-dmg .bf-name {
+  width: 100%; margin: 0; font-size: 10px;
 }
-.result-dmg-stats .dealt svg { fill: #e0a84a; }
-.result-dmg-stats .taken svg { fill: rgb(var(--color-danger)); }
+.result-unit .bar, .result-dmg .bar { width: 100%; }
+.result-unit .bf-hp, .result-dmg .bf-hp {
+  width: 100%; font-size: 9px; line-height: 1.2;
+}
+.result-dmg .bar.dealt i { background: #e0a84a; }
+.result-dmg .bar.taken i { background: rgb(var(--color-danger)); }
+.result-dmg .bar.taken { margin-top: 2px; }
+.result-dmg .dealt { color: #e0a84a; }
+.result-dmg .taken { color: rgb(var(--color-danger)); }
+.result-dmg .bf-hp svg {
+  width: 10px; height: 10px; vertical-align: -1px; margin-right: 2px;
+}
+.result-dmg .dealt svg { fill: #e0a84a; }
+.result-dmg .taken svg { fill: rgb(var(--color-danger)); }
+@media (max-width: 900px) {
+  .result-team, .result-dmg-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 @media (max-width: 640px) { .battle-sides { grid-template-columns: 1fr; } }
 
 .drop-zone {
@@ -4855,46 +4882,51 @@ function battleResultHtml(result) {
   const discHtml = (result.discoveries || []).map((d) =>
     `<div class="result-disc">${catalogArtHtml(d.catalogId)}<span>${escapeHtml(d.name)}</span></div>`
   ).join("");
-  const unitHtml = cards.map((f) => {
+  const slots = cards.slice(0, 6);
+  while (slots.length < 6) slots.push(null);
+  const unitHtml = slots.map((f) => {
+    if (!f) return `<div class="result-unit empty"></div>`;
     const hpPct = f.maxHp > 0 ? Math.max(0, Math.round((f.hp / f.maxHp) * 100)) : 0;
     const up = (f.levelAfter || 0) > (f.levelBefore || 0);
     const showXp = !f.isOperator && (f.xpNeed || 0) > 0;
     const xpPct = showXp ? Math.min(100, Math.round((f.xpNow / f.xpNeed) * 100)) : 0;
-    const lv = showXp
-      ? (up ? `Lv.${f.levelBefore} → <b>Lv.${f.levelAfter}</b>` : `Lv.${f.levelAfter}`)
-      : "";
-    const xpLine = showXp
-      ? `<div class="bar xp"><i style="width:${xpPct}%"></i></div>
-         <div class="bf-hp${up ? " lvup" : ""}">EXP ${f.xpNow} / ${f.xpNeed}${f.xpGain ? `　+${f.xpGain}` : ""}　${lv}</div>`
-      : "";
-    return `<div class="bf ally${f.hp <= 0 ? " dead" : ""}">
+    const xpNum = showXp
+      ? `EXP ${f.xpNow} / ${f.xpNeed}${f.xpGain ? ` +${f.xpGain}` : ""}${up ? `　Lv.${f.levelBefore}→<b>Lv.${f.levelAfter}</b>` : ""}`
+      : "EXP —";
+    return `<div class="result-unit${f.hp <= 0 ? " dead" : ""}">
       ${battleFighterArt(f)}
-      <div>
-        <div class="bf-name">${escapeHtml(f.name)}</div>
-        <div class="bar"><i style="width:${hpPct}%"></i></div>
-        <div class="bf-hp">${Math.max(0, f.hp)} / ${f.maxHp}</div>
-        ${xpLine}
+      <div class="bf-name">${escapeHtml(f.name)}</div>
+      <div class="bar"><i style="width:${hpPct}%"></i></div>
+      <div class="bf-hp">HP ${Math.max(0, f.hp)} / ${f.maxHp}</div>
+      <div class="bar xp"><i style="width:${xpPct}%"></i></div>
+      <div class="bf-hp${up ? " lvup" : ""}">${xpNum}</div>
+    </div>`;
+  }).join("");
+  const maxDealt = Math.max(0, ...cards.map((f) => f.dmgDealt || 0));
+  const maxTaken = Math.max(0, ...cards.map((f) => f.dmgTaken || 0));
+  const dmgSlots = cards.slice(0, 6);
+  while (dmgSlots.length < 6) dmgSlots.push(null);
+  const dmgHtml = dmgSlots.map((f) => {
+    if (!f) return `<div class="result-dmg empty"></div>`;
+    const dealt = f.dmgDealt || 0;
+    const taken = f.dmgTaken || 0;
+    const dealtPct = maxDealt > 0 ? Math.round((dealt / maxDealt) * 100) : 0;
+    const takenPct = maxTaken > 0 ? Math.round((taken / maxTaken) * 100) : 0;
+    return `<div class="result-dmg">
+      ${battleFighterArt(f)}
+      <div class="bf-name">${escapeHtml(f.name)}</div>
+      <div class="bar dealt"><i style="width:${dealtPct}%"></i></div>
+      <div class="bf-hp dealt" title="与えたダメージ">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.8 1.4 14.6 5.2 6.5 13.3 2.2 14.8 3.7 10.5zM12.2 2.8 13.2 1.8 14.2 2.8 13.2 3.8z"/></svg>
+        ${dealt.toLocaleString()}
+      </div>
+      <div class="bar taken"><i style="width:${takenPct}%"></i></div>
+      <div class="bf-hp taken" title="受けたダメージ">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.4 13.6 4v3.4c0 3.4-2.4 5.7-5.6 7.2C4.8 13.1 2.4 10.8 2.4 7.4V4z"/></svg>
+        ${taken.toLocaleString()}
       </div>
     </div>`;
   }).join("");
-  const dmgHtml = cards.length
-    ? cards.map((f) => `<div class="result-dmg">
-        ${battleFighterArt(f)}
-        <div>
-          <div class="bf-name">${escapeHtml(f.name)}</div>
-          <div class="result-dmg-stats">
-            <span class="dealt" title="与えたダメージ">
-              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.8 1.4 14.6 5.2 6.5 13.3 2.2 14.8 3.7 10.5zM12.2 2.8 13.2 1.8 14.2 2.8 13.2 3.8z"/></svg>
-              与えた ${Number(f.dmgDealt || 0).toLocaleString()}
-            </span>
-            <span class="taken" title="受けたダメージ">
-              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.4 13.6 4v3.4c0 3.4-2.4 5.7-5.6 7.2C4.8 13.1 2.4 10.8 2.4 7.4V4z"/></svg>
-              受けた ${Number(f.dmgTaken || 0).toLocaleString()}
-            </span>
-          </div>
-        </div>
-      </div>`).join("")
-    : `<span class="result-empty">記録なし</span>`;
   const advance = result.win && result.advancedTo
     ? `<p class="result-empty" style="margin-top:8px">${escapeHtml(floorName(result.advancedTo))} へ進出</p>`
     : "";
@@ -4902,7 +4934,7 @@ function battleResultHtml(result) {
     <div class="result-loot">${lootHtml}${budgetHtml}</div>
     ${discHtml ? `<div class="label">新規発見</div>${discHtml}` : ""}
     <div class="label">展開チーム</div>
-    ${unitHtml || `<span class="result-empty">編成なし</span>`}
+    <div class="result-team">${unitHtml}</div>
     <div class="label">ダメージ</div>
     <div class="result-dmg-list">${dmgHtml}</div>
     ${advance}`;

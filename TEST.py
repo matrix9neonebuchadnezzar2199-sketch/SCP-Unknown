@@ -464,8 +464,8 @@ def main() -> int:
         failed += 1
     else:
         print("OK  loot summary icons")
-    if "data-result-layout" not in html or "result-dmg" not in html or '<div class="label">経験値</div>' in html:
-        print("FAIL リザルトのEXPバー／戦闘ログ横並び／ダメージ欄が無い")
+    if "data-result-layout" not in html or "result-team" not in html or "repeat(6" not in html:
+        print("FAIL リザルトの6列カード／ダメージ比較バーが無い")
         failed += 1
     else:
         print("OK  battle result layout")
