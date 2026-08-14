@@ -1423,20 +1423,23 @@ function initFirebaseChat() {
     fbDb = firebase.database();
     // セッションを localStorage に永続化（リロードしてもログインを維持）
     firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+    let authChecked = false;
     firebase.auth().onAuthStateChanged((user) => {
       fbUser = user;
       fbAuthed = !!user;
       updateAuthUi();
+      // 最初の発火はセッション復元の完了を意味する。未ログインなら匿名で入る
+      // （復元を待たずに匿名サインインすると Google セッションを上書きしてしまう）
+      if (!authChecked) {
+        authChecked = true;
+        if (!user) firebase.auth().signInAnonymously().catch(() => { fbAuthed = false; });
+      }
       // Google ログインが新たに有効になったタイミングでセーブを同期
       if (user && !user.isAnonymous && fbLastSyncUid !== user.uid) {
         fbLastSyncUid = user.uid;
         syncCloudSave();
       }
     });
-    // チャット用。Google 未ログイン時は匿名で入る
-    if (!firebase.auth().currentUser) {
-      firebase.auth().signInAnonymously().catch(() => { fbAuthed = false; });
-    }
     fbDb.ref("chat/all").limitToLast(FB_CHAT_LIMIT).on("child_added", (snap) => {
       const m = snap.val();
       if (!m || typeof m.text !== "string") return;
