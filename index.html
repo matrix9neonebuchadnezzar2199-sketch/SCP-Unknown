@@ -2096,7 +2096,10 @@ let fbOnlineCount = 0;
 let presenceUid = null;
 let presenceListOn = false;
 let presenceConnectedOn = false;
+let presenceHeartbeat = 0;
 const PRESENCE_CONN_ID = "c" + Math.random().toString(36).slice(2, 12);
+const PRESENCE_HEARTBEAT_MS = 25000;
+const PRESENCE_STALE_MS = 120000;
 
 function isGoogleUser(user) {
   return !!(user && !user.isAnonymous);
@@ -2159,6 +2162,7 @@ function initFirebaseChat() {
           fbUser = user;
           fbAuthed = !!user;
           updateAuthUi();
+          updateChatFooter();
           if (!authChecked) {
             authChecked = true;
             if (!user) firebase.auth().signInAnonymously().catch(() => { fbAuthed = false; });
@@ -2597,11 +2601,15 @@ function updateHeader() {
   document.getElementById("op-avatar").textContent = (p.codename || "R").charAt(0);
 }
 
-/** 接続中の uid 数。同一 uid の複数タブは 1 人と数える（connId でタブを分ける） */
-function countPresenceUids(snap) {
+/** 生きている接続数。同じ Google の別ブラウザも connId が違えば増える */
+function countPresenceOnline(snap) {
+  const now = Date.now();
   let n = 0;
-  snap.forEach((child) => {
-    if (child.hasChildren()) n += 1;
+  snap.forEach((uidSnap) => {
+    uidSnap.forEach((connSnap) => {
+      const ts = connSnap.child("ts").val();
+      if (typeof ts === "number" && now - ts < PRESENCE_STALE_MS) n += 1;
+    });
   });
   return n;
 }
@@ -2610,8 +2618,10 @@ function attachPresenceListeners() {
   if (!fbDb || presenceListOn) return;
   presenceListOn = true;
   fbDb.ref("presence").on("value", (snap) => {
-    fbOnlineCount = countPresenceUids(snap);
+    fbOnlineCount = countPresenceOnline(snap);
     updateChatFooter();
+  }, () => {
+    presenceListOn = false;
   });
   if (presenceConnectedOn) return;
   presenceConnectedOn = true;
@@ -2630,17 +2640,25 @@ function claimPresence(uid) {
 
 function startPresence(uid) {
   if (!fbDb || !uid) return;
-  attachPresenceListeners();
   if (presenceUid && presenceUid !== uid) {
     const oldRef = fbDb.ref(`presence/${presenceUid}/${PRESENCE_CONN_ID}`);
     oldRef.onDisconnect().cancel();
     oldRef.remove().catch(() => {});
   }
   presenceUid = uid;
+  attachPresenceListeners();
   claimPresence(uid);
+  if (presenceHeartbeat) clearInterval(presenceHeartbeat);
+  presenceHeartbeat = setInterval(() => {
+    if (presenceUid) claimPresence(presenceUid);
+  }, PRESENCE_HEARTBEAT_MS);
 }
 
 function stopPresence() {
+  if (presenceHeartbeat) {
+    clearInterval(presenceHeartbeat);
+    presenceHeartbeat = 0;
+  }
   if (fbDb && presenceUid) {
     const ref = fbDb.ref(`presence/${presenceUid}/${PRESENCE_CONN_ID}`);
     ref.onDisconnect().cancel();
@@ -2657,10 +2675,10 @@ function chatNetStatus() {
 
 function updateChatFooter() {
   const el = document.getElementById("chat-footer");
-  if (!el || !state) return;
-  const n = chatChannel === "question"
-    ? mergedQuestionChat().length
-    : mergedAllChat().length;
+  if (!el) return;
+  const n = !state
+    ? 0
+    : (chatChannel === "question" ? mergedQuestionChat().length : mergedAllChat().length);
   const ch = chatChannel === "all" ? "全体" : "質問";
   el.textContent = `通信網 — ${n} 件 / チャンネル: ${ch} / ${chatNetStatus()}`;
 }

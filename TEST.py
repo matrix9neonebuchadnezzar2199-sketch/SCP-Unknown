@@ -650,6 +650,9 @@ def main() -> int:
     if "function startPresence" not in html or "function updateChatFooter" not in html:
         print("FAIL オンライン人数（presence / footer）が無い")
         failed += 1
+    elif "countPresenceOnline" not in html or "PRESENCE_HEARTBEAT_MS" not in html:
+        print("FAIL presence のハートビート／接続カウントが無い")
+        failed += 1
     else:
         print("OK  presence footer")
 
