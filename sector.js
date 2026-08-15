@@ -912,6 +912,38 @@ function expireEmptySentries(sim) {
   return removed;
 }
 
+/** 自動配備用。解明済みで砲台の無い部屋。空きが無ければ null */
+function nextAutoSentryRoom(sim) {
+  if (!sim?.sector?.rooms) return null;
+  const occupied = new Set();
+  for (const s of sim.sentries || []) {
+    const room = roomContaining(sim.sector, s.x, s.y);
+    if (room) occupied.add(room.id);
+  }
+  return sim.sector.rooms.find((room) => isRoomRevealed(sim, room.id) && !occupied.has(room.id)) || null;
+}
+
+/**
+ * 空き枠と空き部屋が揃った分だけ置く。部屋不足の枠は置かない。
+ * @returns {number} 新規配置数
+ */
+function placeAutoSentries(state, sim) {
+  if (!state || !sim) return 0;
+  if (!Array.isArray(state.sentries)) state.sentries = [];
+  sim.sentries = state.sentries;
+  const ammoMax = sentryAmmoMaxOf(state);
+  const max = sentryMaxOf(state);
+  let placed = 0;
+  while (state.sentries.length < max) {
+    const room = nextAutoSentryRoom(sim);
+    if (!room) break;
+    state.sentries.push({ x: room.cx, y: room.cy, ammo: ammoMax });
+    placed += 1;
+    if (Array.isArray(sim.events)) sim.events.push(`セントリーガンを自動配備（${room.code}）`);
+  }
+  return placed;
+}
+
 function sentryIndexAt(sentries, x, y) {
   let best = -1;
   let bestD = SENTRY_HIT;

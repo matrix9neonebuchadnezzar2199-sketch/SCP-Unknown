@@ -188,6 +188,28 @@ eq("mapSite set", sMap.mapSite, pick.id);
     ok("exclusive filtered S", !(ctx.poolForRarity("S") || []).some((o) => o.id === "art_hourglass"));
 }
 {
+  const sOps = ctx.createNewState();
+  ok("ops default off", sOps.opsPlan && sOps.opsPlan.autoBoss === false && sOps.opsPlan.autoSentry === false);
+  const sOpsMig = ctx.createNewState();
+  delete sOpsMig.opsPlan;
+  ctx.migrateState(sOpsMig);
+  ok("migrate opsPlan", !!(sOpsMig.opsPlan) && sOpsMig.opsPlan.autoSentry === false);
+  const sA = ctx.createNewState();
+  const simA = ctx.createSectorSim(sA, G.floors[0]);
+  sA.sentries = [];
+  simA.sentries = sA.sentries;
+  const n1 = ctx.placeAutoSentries(sA, simA);
+  eq("auto sentry first room", n1, 1);
+  const n2 = ctx.placeAutoSentries(sA, simA);
+  eq("auto sentry no double room", n2, 0);
+  const otherRoom = simA.sector.rooms.find((r) => !simA.revealed.has(r.id));
+  if (otherRoom) {
+    simA.revealed.add(otherRoom.id);
+    const n3 = ctx.placeAutoSentries(sA, simA);
+    eq("auto sentry second room", n3, 1);
+  }
+}
+{
     const all = ctx.craftableList();
     const gear = new Set(["gear", "attach"]);
     const item = new Set(["part", "object", "artifact"]);
@@ -544,6 +566,28 @@ def main() -> int:
         failed += 1
     else:
         print("OK  base craft shops")
+    if 'menuBtn("ops"' not in html or "function renderOpsPlan" not in html or "data-ops-toggle" not in html:
+        print("FAIL 作戦立案画面が無い")
+        failed += 1
+    elif '作戦立案", "準備中"' in html:
+        print("FAIL 作戦立案が準備中のまま")
+        failed += 1
+    else:
+        print("OK  ops plan")
+    tac_at = html.find('class="tactics-row"')
+    if tac_at < 0:
+        print("FAIL tactics-row が無い")
+        failed += 1
+    else:
+        tac = html[tac_at:tac_at + 1600]
+        if "緊急展開" in tac or "強行突入" in tac:
+            print("FAIL 緊急展開／強行突入が司令室の戦術スキルに残っている")
+            failed += 1
+        elif 'id="btn-boost"' not in html or 'id="btn-force-breach"' not in html:
+            print("FAIL 緊急展開／強行突入が作戦立案に無い")
+            failed += 1
+        else:
+            print("OK  ops skills moved")
     if 'menu-cat settings' in html or 'menuBtn("help"' in html or 'menuBtn("credits"' in html:
         print("FAIL 設定メニューが残っている")
         failed += 1

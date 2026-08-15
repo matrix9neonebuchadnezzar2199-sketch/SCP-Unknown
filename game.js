@@ -56,6 +56,7 @@ function createNewState() {
     limitedRun: null,
     ospreyAtHq: false,
     siteNodes: ["n_start"],
+    opsPlan: { autoBoss: false, autoSentry: false },
     profile: { codename: newGuestCodename(), clearance: 2, title: "収容担当" },
     chatLog: [],
   };
@@ -1089,6 +1090,20 @@ function sentryAmmoMaxOf(st) {
 function sentryRadiusOf(st) {
   const base = typeof SENTRY_RADIUS === "number" ? SENTRY_RADIUS : 56;
   return base + (sitePassives(st).sentryRadius || 0);
+}
+
+function emptyOpsPlan() {
+  return { autoBoss: false, autoSentry: false };
+}
+
+function ensureOpsPlan(state) {
+  if (!state.opsPlan || typeof state.opsPlan !== "object") {
+    state.opsPlan = emptyOpsPlan();
+    return state.opsPlan;
+  }
+  state.opsPlan.autoBoss = !!state.opsPlan.autoBoss;
+  state.opsPlan.autoSentry = !!state.opsPlan.autoSentry;
+  return state.opsPlan;
 }
 
 function allocateSiteNode(state, nodeId) {
@@ -2321,6 +2336,7 @@ function migrateState(state) {
     state.mapSite = defaultMapSiteId();
   }
   migrateLimitedRun(state);
+  ensureOpsPlan(state);
   ensureOperatorGear(state);
   if (!Array.isArray(state.battleLog)) state.battleLog = [];
   delete state.lastExplore;

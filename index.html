@@ -594,6 +594,21 @@ a { color: rgb(var(--color-secondary)); }
 }
 .tactics-row .label { margin: 0; }
 
+.ops-plan-row {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0 14px;
+}
+.ops-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: var(--radius-pill); font-size: 12px;
+  letter-spacing: 0.06em; border: 1px solid #3a4248;
+  background: #2a2e34; color: #6a7278;
+}
+.ops-tag.on {
+  background: #8eb8d4; color: #102028; border-color: #a8cce0;
+}
+.ops-tag.off { opacity: 0.72; }
+.ops-plan-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
 .breach-row {
   display: grid; grid-template-columns: 1fr auto; gap: 10px;
   align-items: stretch; margin-bottom: 10px;
@@ -2454,6 +2469,7 @@ const VIEW_TITLES = {
   profile: "プロフィール",
   items: "入手アイテム整理",
   roster: "収容個体生成",
+  ops: "作戦立案",
   help: "ヘルプ",
   board: "掲示板",
   credits: "関連物語",
@@ -2689,6 +2705,7 @@ function render() {
     profile: renderProfile,
     items: renderItems,
     roster: renderRoster,
+    ops: renderOpsPlan,
     help: renderHelp,
     board: renderBoard,
     credits: renderCredits,
@@ -2778,7 +2795,12 @@ function sectorFrame(ts) {
     render();
     return;
   }
-  if (changed) {
+  const autoPlaced = tryAutoPlaceSentries();
+  if (tryAutoBoss()) {
+    sectorRaf = requestAnimationFrame(sectorFrame);
+    return;
+  }
+  if (changed || autoPlaced) {
     renderReconLog();
     updateHeader();
     refreshPendingLive();
@@ -3257,8 +3279,6 @@ function renderDashboard() {
               セントリーガン
               <span class="sentry-count">${(state.sentries || []).length}/${sentryMaxOf(state)}</span>
             </button>
-            <button type="button" class="btn btn-primary" id="btn-boost" title="許可証 1 枚 / 60秒間、巡回速度×2" ${state.stamina < 1 ? "disabled" : ""}>緊急展開（巡回速度×２）</button>
-            <button type="button" class="btn btn-secondary" id="btn-force-breach" title="許可証 5 枚 / キル報酬なしで制圧率を即MAX" ${state.stamina < 5 || breachReady || state.sectorCleared ? "disabled" : ""}>強行突入（区画制圧率をMAX）</button>
             <button type="button" class="btn btn-secondary" data-goto="squad">編成</button>
             ${boostLeft > 0 ? `<span class="boost-chip">加速中 ${boostLeft}s</span>` : ""}
           </div>
@@ -3310,7 +3330,7 @@ function renderDashboard() {
       <div class="menu-btns">
         ${menuBtn("squad", "⚔", "編成", `主人公+${squadUnits.length}/5`)}
         ${menuBtn("chamber", "🔬", "試験槽", state.units.length >= GAME_DATA.chamberUnlockCount ? `${state.chamber.length}/${chamberMax}` : "要7体")}
-        ${menuBtn("", "📋", "作戦立案", "準備中", true)}
+        ${menuBtn("ops", "📋", "作戦立案", opsPlanSub())}
         ${menuBtn("", "🛰", "遠征", "準備中", true)}
       </div>
     </div>
@@ -3321,6 +3341,39 @@ function renderDashboard() {
         ${menuBtn("profile", "👤", "プロフィール", `Lv.${state.profile?.clearance || 1}`)}
         ${menuBtn("items", "📦", "倉庫", `${itemCount}/${state.storageSlots}`)}
       </div>
+    </div>
+  </div>`;
+}
+
+function opsPlanSub() {
+  const plan = ensureOpsPlan(state);
+  const n = (plan.autoBoss ? 1 : 0) + (plan.autoSentry ? 1 : 0);
+  return n ? `自動 ${n}` : "手動";
+}
+
+function opsTagHtml(key, label, title) {
+  const on = !!(ensureOpsPlan(state)[key]);
+  return `<button type="button" class="ops-tag ${on ? "on" : "off"}" data-ops-toggle="${key}" aria-pressed="${on ? "true" : "false"}" title="${escapeHtml(title)}">${escapeHtml(label)}</button>`;
+}
+
+function renderOpsPlan() {
+  const plan = ensureOpsPlan(state);
+  const breachReady = isBreachReady(state);
+  const boostLeft = Math.max(0, Math.ceil(((state.boostUntil || 0) - Date.now()) / 1000));
+  return `<div class="panel">
+    <h2>作戦立案</h2>
+    <p style="font-size:12px;color:rgb(var(--color-text-muted));margin-bottom:8px">交戦規定。司令室の MAP は回したまま、ここで切り替える。OFF は無効、ON は薄い青。</p>
+    <div class="label">自動規定</div>
+    <div class="ops-plan-row">
+      ${opsTagHtml("autoBoss", "BOSS自動挑戦", "制圧率 MAX で自動出現。敗北後は通常巡回に戻り、再 MAX で繰り返す")}
+      ${opsTagHtml("autoSentry", "セントリー自動配備", "解明済みの空き部屋へ、設置枠がある分だけ置く")}
+    </div>
+    <p style="font-size:11px;color:rgb(var(--color-text-muted))">BOSS自動: ${plan.autoBoss ? "ON — 敗北後も巡回して再挑戦" : "OFF"} ／ セントリー自動: ${plan.autoSentry ? "ON — 弾切れ撤去後も空き部屋へ再配備" : "OFF"}</p>
+    <div class="label" style="margin-top:16px">許可証スキル</div>
+    <div class="ops-plan-actions">
+      <button type="button" class="btn btn-primary" id="btn-boost" title="許可証 1 枚 / 60秒間、巡回速度×2" ${state.stamina < 1 ? "disabled" : ""}>緊急展開（巡回速度×２）</button>
+      <button type="button" class="btn btn-secondary" id="btn-force-breach" title="許可証 5 枚 / キル報酬なしで制圧率を即MAX" ${state.stamina < 5 || breachReady || state.sectorCleared ? "disabled" : ""}>強行突入（区画制圧率をMAX）</button>
+      ${boostLeft > 0 ? `<span class="boost-chip">加速中 ${boostLeft}s</span>` : ""}
     </div>
   </div>`;
 }
@@ -4219,6 +4272,7 @@ function renderHelp() {
       <li>収集した部品と収容品は<strong>入手アイテム整理</strong>で倉庫へ入れるか、売却／分解する。上位クラフトと拠点拡張は収容品を残す必要がある。装備強化は予算と基礎部品。</li>
       <li><strong>拠点 → 装備制作 / アイテム制作</strong>で部品と収容品から装備・アタッチ・アイテムを作り、<strong>拠点 → 装備</strong>で主人公に着せる。装備は個体ごとに強化（最大Lv.100、予算＋基礎部品）。メインウエポンのアタッチは個体ごとにレアとステ振れ幅が付く。</li>
       <li><strong>戦術 → 編成</strong>で主人公＋収容個体5体（計6）を揃えてから探索。</li>
+      <li><strong>戦術 → 作戦立案</strong>で BOSS 自動挑戦とセントリー自動配備を切り替える。緊急展開と強行突入もここから使う。</li>
       <li><strong>戦術スキル → セントリーガン</strong>で解明済みの室内に砲台を置き、円内の敵へ自動射撃する（最大2、残弾 20、弾切れ 10 秒後に撤去。砲台クリックで削除）。展開チームは進行方向の迎撃錐に入った敵へ連射する。HPが尽きるとステージMAPの前線指揮所からオスプレイが現在地点へ再展開する。</li>
       <li><strong>拠点 → 収容体合成</strong>で収容体を親A／親Bへドラッグして合成。Rev とスキルを継承し、レシピがあれば交差種になる。</li>
       <li><strong>拠点強化</strong>のノードをクリックすると右側に詳細が出る。拡張は予算に加え基礎部品と収容品を消費する。</li>
@@ -5294,6 +5348,18 @@ function bindViewEvents() {
   if (btnBreach) btnBreach.onclick = doForceBreach;
   const btnBoss = document.getElementById("btn-boss");
   if (btnBoss) btnBoss.onclick = doBossChallenge;
+  document.querySelectorAll("[data-ops-toggle]").forEach((btn) => {
+    btn.onclick = () => {
+      const key = btn.dataset.opsToggle;
+      if (key !== "autoBoss" && key !== "autoSentry") return;
+      const plan = ensureOpsPlan(state);
+      plan[key] = !plan[key];
+      saveGame(state);
+      render();
+      if (key === "autoSentry" && plan.autoSentry) tryAutoPlaceSentries();
+      if (key === "autoBoss" && plan.autoBoss) tryAutoBoss();
+    };
+  });
   if (currentView === "equipment") {
     document.querySelectorAll("[data-equip-slot]").forEach((btn) => {
       btn.onclick = () => {
@@ -5606,6 +5672,31 @@ function doForceBreach() {
     toast(r.msg);
     if (r.ok) render();
   });
+}
+
+function tryAutoPlaceSentries() {
+  if (!state || !sectorSim) return false;
+  if (!ensureOpsPlan(state).autoSentry) return false;
+  if (sentryPlaceMode || sentryBusy) return false;
+  if (document.querySelector(".confirm-overlay, .battle-overlay")) return false;
+  const n = placeAutoSentries(state, sectorSim);
+  if (n > 0) {
+    saveGame(state);
+    updateSentryAmmoHud(true);
+    return true;
+  }
+  return false;
+}
+
+function tryAutoBoss() {
+  if (!state || !sectorSim) return false;
+  if (!ensureOpsPlan(state).autoBoss) return false;
+  if (bossPlayback || limitedExtractLock) return false;
+  if (document.querySelector(".confirm-overlay, .battle-overlay")) return false;
+  if (sectorSim.boss || state.bossActive) return false;
+  if (!isBreachReady(state)) return false;
+  doBossChallenge();
+  return true;
 }
 
 function doBossChallenge() {
