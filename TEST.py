@@ -609,6 +609,13 @@ def main() -> int:
         failed += 1
     else:
         print("OK  notice bar")
+    ver_m = re.search(r'version:\s*"([^"]+)"', (ROOT / "data.js").read_text(encoding="utf-8"))
+    ver = ver_m.group(1) if ver_m else ""
+    if not ver or f'data.js?v={ver}' not in html or f'game.js?v={ver}' not in html or f'sector.js?v={ver}' not in html:
+        print("FAIL JS のキャッシュバスト（?v=version）が data.js と揃っていない")
+        failed += 1
+    else:
+        print("OK  asset cache bust")
     if ".btn.btn-map-select" not in html or "#8eb8d4" not in html:
         print("FAIL MAP選択／←司令室の薄い青が無い")
         failed += 1
